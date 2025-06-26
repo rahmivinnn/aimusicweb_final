@@ -25,6 +25,20 @@ const TextToSong: React.FC = () => {
   const [mixingMode, setMixingMode] = useState<'traditional' | 'realtime'>('traditional');
   const [realtimeMixUrl, setRealtimeMixUrl] = useState<string | null>(null);
 
+  // Word limit validation
+  const getWordLimit = () => {
+    return user?.plan === 'premium' ? 100 : 50;
+  };
+
+  const getWordCount = (text: string) => {
+    return text.trim().split(/\s+/).filter(word => word.length > 0).length;
+  };
+
+  const isWordLimitExceeded = () => {
+    const wordCount = getWordCount(prompt);
+    return wordCount > getWordLimit();
+  };
+
   // Professional EDM and Electronic Genres
   const genres = [
     // EDM & Electronic (Professional DJ Music)
@@ -63,7 +77,7 @@ const TextToSong: React.FC = () => {
     { value: 'Robot', label: '🤖 Robotic', description: 'Futuristic robotic voice' }
   ];
 
-  // Fast Text-to-Speech function optimized for speed (max 2 seconds)
+  // Professional Voice Generation with FardRemix-style quality
   const generateVoiceAudio = async (text: string, style: string): Promise<Blob> => {
     return new Promise((resolve, reject) => {
       // Add timeout to prevent hanging
@@ -81,54 +95,57 @@ const TextToSong: React.FC = () => {
       
       const utterance = new SpeechSynthesisUtterance(text);
       
-      // Fast voice configuration - use first available voice for speed
+      // Professional voice selection for better quality
       const voices = speechSynthesis.getVoices();
-      const fastVoice = voices.find(voice => voice.lang.startsWith('en')) || voices[0];
+      let selectedVoice = voices.find(voice => 
+        voice.lang.startsWith('en') && 
+        (voice.name.includes('Google') || voice.name.includes('Microsoft') || voice.name.includes('Alex'))
+      ) || voices.find(voice => voice.lang.startsWith('en')) || voices[0];
       
-      if (fastVoice) {
-        utterance.voice = fastVoice;
+      if (selectedVoice) {
+        utterance.voice = selectedVoice;
       }
       
-      // Optimized voice styles for speed
+      // Professional voice styles with FardRemix-quality settings
       switch (style) {
         case 'DJ':
-          utterance.rate = 1.0; // Faster rate
-          utterance.pitch = 0.8;
+          utterance.rate = 0.9; // Slightly slower for clarity
+          utterance.pitch = 0.7; // Lower pitch for DJ effect
           utterance.volume = 0;
           break;
         case 'Radio':
-          utterance.rate = 1.1; // Faster rate
+          utterance.rate = 1.0; // Clear radio pace
           utterance.pitch = 0.9;
           utterance.volume = 0;
           break;
         case 'Hype':
-          utterance.rate = 1.2; // Faster rate
-          utterance.pitch = 1.0;
+          utterance.rate = 1.3; // Energetic pace
+          utterance.pitch = 1.1; // Higher pitch for excitement
           utterance.volume = 0;
           break;
         case 'Smooth':
-          utterance.rate = 1.0; // Faster rate
-          utterance.pitch = 0.9;
+          utterance.rate = 0.8; // Slower for smoothness
+          utterance.pitch = 0.85; // Slightly lower pitch
           utterance.volume = 0;
           break;
         case 'Robot':
-          utterance.rate = 1.0; // Faster rate
-          utterance.pitch = 0.5; // Very low for robot effect
+          utterance.rate = 0.7; // Slower robotic speech
+          utterance.pitch = 0.4; // Very low for robot effect
           utterance.volume = 0; // Silent for processing only
           break;
       }
 
-      // Fast audio recording optimized for speed
+      // Professional audio recording with FardRemix-quality settings
       const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)({
-        sampleRate: 22050, // Lower sample rate for speed
-        latencyHint: 'interactive'
+        sampleRate: 44100, // High quality sample rate
+        latencyHint: 'playback' // Better quality over speed
       });
       
       const mediaStreamDestination = audioContext.createMediaStreamDestination();
       
       const mediaRecorder = new MediaRecorder(mediaStreamDestination.stream, {
-        mimeType: 'audio/webm', // Simplified codec for speed
-        audioBitsPerSecond: 64000 // Lower bitrate for speed
+        mimeType: 'audio/webm;codecs=opus', // High quality codec
+        audioBitsPerSecond: 128000 // Higher bitrate for better quality
       });
       
       const chunks: Blob[] = [];
@@ -183,11 +200,11 @@ const TextToSong: React.FC = () => {
   // Fast voice mixing optimized for speed (max 3 seconds)
   const mixAudioWithVoice = async (musicUrl: string, voiceBlob: Blob, voiceVolume: number = 0.5): Promise<string> => {
     try {
-      console.log('🎛️ Fast voice mixing started...');
+      console.log('🎛️ Professional FardRemix-style voice mixing started...');
       
       const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)({
-        sampleRate: 22050, // Lower sample rate for speed
-        latencyHint: 'interactive'
+        sampleRate: 44100, // High quality sample rate
+        latencyHint: 'playback' // Better quality over speed
       });
       
       // Fast parallel loading
@@ -241,70 +258,145 @@ const TextToSong: React.FC = () => {
       
       console.log('🎯 Voice placement at 30% of song');
       
-      // Create mixed buffer
+      // Create advanced audio processing nodes for FardRemix-style quality
+      const compressor = audioContext.createDynamicsCompressor();
+      compressor.threshold.setValueAtTime(-24, audioContext.currentTime);
+      compressor.knee.setValueAtTime(30, audioContext.currentTime);
+      compressor.ratio.setValueAtTime(12, audioContext.currentTime);
+      compressor.attack.setValueAtTime(0.003, audioContext.currentTime);
+      compressor.release.setValueAtTime(0.25, audioContext.currentTime);
+      
+      const reverb = audioContext.createConvolver();
+      // Create impulse response for reverb
+      const impulseLength = audioContext.sampleRate * 2;
+      const impulse = audioContext.createBuffer(2, impulseLength, audioContext.sampleRate);
+      for (let channel = 0; channel < 2; channel++) {
+        const channelData = impulse.getChannelData(channel);
+        for (let i = 0; i < impulseLength; i++) {
+          channelData[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / impulseLength, 2);
+        }
+      }
+      reverb.buffer = impulse;
+      
+      const lowPassFilter = audioContext.createBiquadFilter();
+      lowPassFilter.type = 'lowpass';
+      lowPassFilter.frequency.setValueAtTime(8000, audioContext.currentTime);
+      lowPassFilter.Q.setValueAtTime(1, audioContext.currentTime);
+      
+      const highPassFilter = audioContext.createBiquadFilter();
+      highPassFilter.type = 'highpass';
+      highPassFilter.frequency.setValueAtTime(80, audioContext.currentTime);
+      highPassFilter.Q.setValueAtTime(1, audioContext.currentTime);
+      
+      // Create mixed buffer with professional processing
       const mixedBuffer = audioContext.createBuffer(
         musicAudioBuffer.numberOfChannels,
         musicDuration,
         audioContext.sampleRate
       );
       
-      // Fast simple mixing algorithm
+      // Professional mixing algorithm with advanced processing
       for (let channel = 0; channel < mixedBuffer.numberOfChannels; channel++) {
         const mixedData = mixedBuffer.getChannelData(channel);
         const musicData = musicAudioBuffer.getChannelData(Math.min(channel, musicAudioBuffer.numberOfChannels - 1));
         const voiceData = voiceAudioBuffer.getChannelData(Math.min(channel, voiceAudioBuffer.numberOfChannels - 1));
         
-        // Copy music data
-        // Copy music data to mixed buffer
+        // Copy music data with slight compression
         for (let i = 0; i < musicDuration; i++) {
-          mixedData[i] = musicData[i] || 0;
+          mixedData[i] = (musicData[i] || 0) * 0.85; // Slight compression for headroom
         }
         
-        // Simple fast mixing - place voice at 30% of song
-        const startPos = Math.floor(musicDuration * 0.3);
-        let voiceSamplesAdded = 0;
+        // Professional voice placement with multiple positions
+        const positions = [0.25, 0.5, 0.75]; // Multiple strategic positions
         
-        for (let i = 0; i < voiceDuration && (startPos + i) < musicDuration; i++) {
-          const musicPos = startPos + i;
-          const voiceSample = voiceData[i] || 0;
+        positions.forEach((position, index) => {
+          const startPos = Math.floor(musicDuration * position);
+          let voiceSamplesAdded = 0;
           
-          if (voiceSample !== 0) {
-            voiceSamplesAdded++;
-            // Simple mixing with volume boost
-            const processedVoice = voiceSample * effectiveVolume;
-            const duckedMusic = mixedData[musicPos] * 0.7;
-            mixedData[musicPos] = duckedMusic + processedVoice;
+          for (let i = 0; i < voiceDuration && (startPos + i) < musicDuration; i++) {
+            const musicPos = startPos + i;
+            let voiceSample = voiceData[i] || 0;
+            
+            if (Math.abs(voiceSample) > 0.001) {
+              voiceSamplesAdded++;
+              
+              // Advanced voice processing
+              // Apply saturation for warmth
+              voiceSample = Math.tanh(voiceSample * 2) * 0.7;
+              
+              // Apply EQ-style filtering
+              if (i > 0 && i < voiceDuration - 1) {
+                voiceSample = (voiceData[i-1] * 0.25 + voiceSample * 0.5 + voiceData[i+1] * 0.25);
+              }
+              
+              // Dynamic volume based on position
+              const positionVolume = index === 1 ? effectiveVolume * 1.2 : effectiveVolume * 0.8;
+              const processedVoice = voiceSample * positionVolume;
+              
+              // Advanced ducking with smooth transitions
+              const duckAmount = Math.min(0.4, Math.abs(processedVoice) * 2);
+              const duckedMusic = mixedData[musicPos] * (1 - duckAmount);
+              
+              // Smooth crossfade mixing
+              mixedData[musicPos] = duckedMusic + processedVoice * 0.9;
+              
+              // Add subtle reverb tail
+              if (musicPos + 1000 < musicDuration) {
+                mixedData[musicPos + 1000] += processedVoice * 0.1;
+              }
+            }
           }
-        }
-        
-        console.log(`🎤 Voice mixed: ${voiceSamplesAdded} samples at 30% position`);
+          
+          console.log(`🎤 Voice mixed at ${(position * 100).toFixed(0)}%: ${voiceSamplesAdded} samples`);
+        });
       }
       
-      console.log('🎛️ Audio mixing completed, rendering final output...');
+      console.log('🎛️ Professional audio mixing completed, rendering with FardRemix-quality processing...');
       
-      // Fast rendering with minimal processing
+      // Professional rendering with advanced processing
       const offlineContext = new OfflineAudioContext(
         mixedBuffer.numberOfChannels,
         mixedBuffer.length,
-        22050 // Lower sample rate for faster processing
+        44100 // High quality sample rate
       );
       
       const source = offlineContext.createBufferSource();
       source.buffer = mixedBuffer;
       
-      // Direct connection for speed
-      source.connect(offlineContext.destination);
+      // Create professional audio chain
+      const masterCompressor = offlineContext.createDynamicsCompressor();
+      masterCompressor.threshold.setValueAtTime(-18, offlineContext.currentTime);
+      masterCompressor.knee.setValueAtTime(20, offlineContext.currentTime);
+      masterCompressor.ratio.setValueAtTime(6, offlineContext.currentTime);
+      masterCompressor.attack.setValueAtTime(0.005, offlineContext.currentTime);
+      masterCompressor.release.setValueAtTime(0.1, offlineContext.currentTime);
+      
+      const masterLimiter = offlineContext.createDynamicsCompressor();
+      masterLimiter.threshold.setValueAtTime(-3, offlineContext.currentTime);
+      masterLimiter.knee.setValueAtTime(0, offlineContext.currentTime);
+      masterLimiter.ratio.setValueAtTime(20, offlineContext.currentTime);
+      masterLimiter.attack.setValueAtTime(0.001, offlineContext.currentTime);
+      masterLimiter.release.setValueAtTime(0.01, offlineContext.currentTime);
+      
+      const masterGain = offlineContext.createGain();
+      masterGain.gain.setValueAtTime(0.95, offlineContext.currentTime);
+      
+      // Professional audio chain: Source -> Compressor -> Limiter -> Gain -> Destination
+      source.connect(masterCompressor);
+      masterCompressor.connect(masterLimiter);
+      masterLimiter.connect(masterGain);
+      masterGain.connect(offlineContext.destination);
       
       source.start();
       
       const renderedBuffer = await offlineContext.startRendering();
-      console.log('✅ Final audio rendered:', renderedBuffer.duration, 'seconds');
+      console.log('✅ Professional FardRemix-quality audio rendered:', renderedBuffer.duration, 'seconds');
       
       // Quick verification and conversion
       const wavBlob = audioBufferToWav(renderedBuffer);
       const finalUrl = URL.createObjectURL(wavBlob);
       
-      console.log('🎵 Fast mixing completed! Duration:', renderedBuffer.duration, 's');
+      console.log('🎵 Professional FardRemix-style mixing completed! Duration:', renderedBuffer.duration, 's');
       return finalUrl;
       
     } catch (error) {
@@ -367,6 +459,12 @@ const TextToSong: React.FC = () => {
   const handleGenerateSong = async () => {
     if (!prompt.trim()) {
       toast.error('Please enter a text prompt');
+      return;
+    }
+
+    // Word limit validation
+    if (isWordLimitExceeded()) {
+      toast.error(`Word limit exceeded! ${user?.plan === 'premium' ? 'Premium users' : 'Free users'} can use up to ${getWordLimit()} words.`);
       return;
     }
 
@@ -580,19 +678,54 @@ const TextToSong: React.FC = () => {
         transition={{ delay: 0.4 }}
         className="bg-gradient-to-br from-dark-800 to-dark-850 rounded-xl p-6 border border-cyan-500/30 shadow-xl"
       >
-        <div className="flex items-center space-x-3 mb-6">
-          <div className="w-10 h-10 bg-gradient-to-r from-cyan-500 to-cyan-600 rounded-lg flex items-center justify-center">
-            <Volume2 className="w-5 h-5 text-white" />
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 bg-gradient-to-r from-cyan-500 to-cyan-600 rounded-lg flex items-center justify-center">
+              <Volume2 className="w-5 h-5 text-white" />
+            </div>
+            <h3 className="text-xl font-semibold text-white">Describe Your Song</h3>
           </div>
-          <h3 className="text-xl font-semibold text-white">Describe Your Song</h3>
+          <div className="flex items-center space-x-2">
+            {user?.plan === 'premium' && (
+              <span className="px-2 py-1 bg-gradient-to-r from-yellow-500 to-yellow-600 text-black text-xs font-bold rounded-full flex items-center">
+                <Crown className="w-3 h-3 mr-1" />
+                PREMIUM
+              </span>
+            )}
+            <span className={`text-sm font-medium ${
+              isWordLimitExceeded() ? 'text-red-400' : 'text-cyan-400'
+            }`}>
+              {getWordCount(prompt)}/{getWordLimit()} words
+            </span>
+          </div>
         </div>
         
-        <textarea
-          value={prompt}
-          onChange={(e) => setPrompt(e.target.value)}
-          placeholder="Describe your perfect song... (e.g., 'Create an epic electronic dance track with heavy bass drops, soaring synths, and a driving beat that makes people want to dance all night')"
-          className="w-full h-32 bg-dark-700 border border-cyan-500/50 rounded-lg px-4 py-3 text-white placeholder-dark-400 resize-none focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all"
-        />
+        <div className="relative">
+          <textarea
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            placeholder={`Describe your perfect song... (${user?.plan === 'premium' ? '100' : '50'} words max)`}
+            className={`w-full h-32 bg-dark-700 border rounded-lg px-4 py-3 text-white placeholder-dark-400 resize-none focus:outline-none focus:ring-2 focus:border-transparent transition-all ${
+              isWordLimitExceeded() 
+                ? 'border-red-500/50 focus:ring-red-500' 
+                : 'border-cyan-500/50 focus:ring-cyan-500'
+            }`}
+          />
+          {isWordLimitExceeded() && (
+            <div className="absolute -bottom-6 left-0 text-red-400 text-sm flex items-center">
+              <span className="mr-1">⚠️</span>
+              Word limit exceeded! {user?.plan === 'premium' ? 'Premium users' : 'Free users'} can use up to {getWordLimit()} words.
+              {user?.plan !== 'premium' && (
+                <button 
+                  onClick={() => {/* Navigate to subscription */}}
+                  className="ml-2 text-yellow-400 hover:text-yellow-300 underline"
+                >
+                  Upgrade to Premium
+                </button>
+              )}
+            </div>
+          )}
+        </div>
       </motion.div>
 
       {/* Settings */}
