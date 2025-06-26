@@ -6,7 +6,7 @@ import AudioPlayer from './AudioPlayer';
 
 const Dashboard: React.FC<{ setActiveTab?: (tab: string) => void }> = ({ setActiveTab }) => {
   const { user, tracks } = useStore();
-  const recentTracks = tracks.slice(0, 4);
+  const recentTracks = tracks.slice(0, 30);
 
   return (
     <div className="max-w-5xl mx-auto p-6 space-y-8">
@@ -65,7 +65,7 @@ const Dashboard: React.FC<{ setActiveTab?: (tab: string) => void }> = ({ setActi
 
       {/* Recent Remixes */}
       <div>
-        <h2 className="text-2xl font-bold text-white mb-2">Resent Remixes</h2>
+        <h2 className="text-2xl font-bold text-white mb-2">Recent Remixes</h2>
         <p className="text-dark-300 mb-6">Here is the list of your recent remixes</p>
         <div className="flex gap-6 overflow-x-auto pb-4 hide-scrollbar">
           {recentTracks.map((track, idx) => (
