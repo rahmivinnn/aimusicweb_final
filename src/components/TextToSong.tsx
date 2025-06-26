@@ -66,10 +66,15 @@ const TextToSong: React.FC = () => {
   // Fast Text-to-Speech function optimized for speed (max 2 seconds)
   const generateVoiceAudio = async (text: string, style: string): Promise<Blob> => {
     return new Promise((resolve, reject) => {
+      // Add timeout to prevent hanging
+      const timeout = setTimeout(() => {
+        reject(new Error('Voice generation timeout after 8 seconds'));
+      }, 8000);
       if (!('speechSynthesis' in window)) {
-        reject(new Error('Speech synthesis not supported'));
-        return;
-      }
+          clearTimeout(timeout);
+          reject(new Error('Speech synthesis not supported'));
+          return;
+        }
 
       // Clear any existing speech
       speechSynthesis.cancel();
@@ -135,6 +140,7 @@ const TextToSong: React.FC = () => {
       };
 
       mediaRecorder.onstop = () => {
+        clearTimeout(timeout);
         const blob = new Blob(chunks, { type: 'audio/webm' });
         resolve(blob);
       };
@@ -163,6 +169,7 @@ const TextToSong: React.FC = () => {
       };
 
       utterance.onerror = (error) => {
+        clearTimeout(timeout);
         console.error('Speech synthesis error:', error);
         reject(error);
       };
@@ -264,7 +271,7 @@ const TextToSong: React.FC = () => {
           if (voiceSample !== 0) {
             voiceSamplesAdded++;
             // Simple mixing with volume boost
-            const processedVoice = voiceSample * boostedVoiceVolume;
+            const processedVoice = voiceSample * effectiveVolume;
             const duckedMusic = mixedData[musicPos] * 0.7;
             mixedData[musicPos] = duckedMusic + processedVoice;
           }
@@ -411,9 +418,17 @@ const TextToSong: React.FC = () => {
           setProgress(85);
           toast.loading('🎤 Generating voice...', { id: loadingToast });
           
+          // Add timeout to prevent hanging
+          const voiceTimeout = setTimeout(() => {
+            console.warn('⚠️ Voice generation timeout, continuing without voice');
+            setProgress(95);
+          }, 10000); // 10 second timeout
+          
           console.log('🎤 Generating voice audio with settings:', { voicePrompt, voiceStyle, voiceVolume });
           const voiceBlob = await generateVoiceAudio(voicePrompt, voiceStyle);
+          clearTimeout(voiceTimeout); // Clear timeout on success
           console.log('✅ Voice blob generated:', voiceBlob.size, 'bytes, type:', voiceBlob.type);
+          setProgress(87); // Update progress after voice generation
           
           // Add small delay to show progress transition
           await new Promise(resolve => setTimeout(resolve, 500));
@@ -430,6 +445,7 @@ const TextToSong: React.FC = () => {
           }
           
           finalOutputUrl = await mixAudioWithVoice(outputUrl, voiceBlob, voiceVolume);
+          console.log('✅ Voice mixing completed, final URL:', finalOutputUrl);
           
           // Add small delay to show progress transition
           await new Promise(resolve => setTimeout(resolve, 300));
@@ -451,6 +467,7 @@ const TextToSong: React.FC = () => {
             console.warn('⚠️ Voice mixing returned original URL, mixing may have failed');
           }
         } catch (voiceError) {
+          clearTimeout(voiceTimeout); // Clear timeout on error
           console.error('❌ Voice generation/mixing error:', voiceError);
           console.error('Voice error details:', {
             voicePrompt,
