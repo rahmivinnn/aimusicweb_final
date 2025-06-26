@@ -141,7 +141,7 @@ const TextToSong: React.FC = () => {
 
       utterance.onstart = () => {
         console.log('🎤 Fast voice generation started');
-        toast.info('🎤 Generasi voice cepat (maks 2 detik)', {
+        toast.info('🎤 Fast voice generation (max 2 seconds)', {
           duration: 2000,
           style: {
             background: '#1a1a1a',
@@ -438,7 +438,7 @@ const TextToSong: React.FC = () => {
           // Verify the mixed result
           if (finalOutputUrl !== outputUrl) {
             console.log('✅ Voice successfully mixed into track');
-            toast.success(`🎤 Voice DJ berhasil dicampur! Volume: ${Math.round(voiceVolume * 100)}% | Style: ${voiceStyle} | Fast Mode: 1 placement`, {
+            toast.success(`🎤 Voice DJ successfully mixed! Volume: ${Math.round(voiceVolume * 100)}% | Style: ${voiceStyle} | Fast Mode: 1 placement`, {
               id: loadingToast + '_mix_success',
               duration: 4000,
               style: {
@@ -898,7 +898,7 @@ const TextToSong: React.FC = () => {
                            onClick={() => setVoiceVolume(0.5)}
                            className="text-xs bg-yellow-600 hover:bg-yellow-700 text-white px-2 py-1 rounded transition-colors"
                          >
-                           Set ke 50% (Direkomendasikan)
+                           Set to 50% (Recommended)
                          </button>
                        </div>
                      )}
@@ -950,33 +950,33 @@ const TextToSong: React.FC = () => {
                   
                   {/* Voice Distribution Timeline */}
                   <div className="mt-3">
-                    <div className="text-xs text-purple-400 mb-1 font-medium">Voice akan muncul sepanjang lagu:</div>
+                    <div className="text-xs text-purple-400 mb-1 font-medium">Voice will appear throughout the song:</div>
                     <div className="flex items-center space-x-1">
                       <div className="flex-1 h-2 bg-dark-600 rounded-full overflow-hidden">
                         <div className="h-full bg-gradient-to-r from-cyan-500 to-purple-500 rounded-full" style={{width: '100%'}}></div>
                       </div>
                     </div>
                     <div className="flex justify-between text-xs text-dark-400 mt-1">
-                      <span>🎵 Awal</span>
-                      <span>🎤 Voice terintegrasi harmonis</span>
-                      <span>🎵 Akhir</span>
+                      <span>🎵 Start</span>
+                       <span>🎤 Voice integrated harmoniously</span>
+                       <span>🎵 End</span>
                     </div>
                   </div>
                   
                   {/* Enhanced Features Info */}
                   <div className="mt-3 p-2 bg-dark-700/50 rounded border border-purple-500/20">
-                    <div className="text-xs text-purple-300 font-medium mb-1">✨ Fitur Enhanced:</div>
+                    <div className="text-xs text-purple-300 font-medium mb-1">✨ Enhanced Features:</div>
                     <div className="text-xs text-dark-300 space-y-1">
-                      <p className="text-cyan-400 font-medium">🔇 Voice akan di-generate secara silent (tidak terdengar langsung)</p>
-                      <p className="text-yellow-400">🎛️ Voice akan dicampur dengan musik setelah generate selesai</p>
-                      <p className="text-green-400 font-medium">⚡ Fast Mode: Generation dalam ~10 detik</p>
-                      <div>• 🎼 Integrasi harmonis dengan melodi</div>
-                      <div>• 🎛️ Tone-changing tanpa blur</div>
-                      <div>• ⚡ Voice placement tunggal untuk kecepatan</div>
-                      <div>• 🎚️ Volume adaptif dengan musik</div>
-                      <div>• 🔊 Voice diperkuat dengan ducking musik</div>
-                      <div>• 🚀 Processing minimal untuk speed optimal</div>
-                      <div>• 🎧 Kualitas audio yang seimbang</div>
+                      <p className="text-cyan-400 font-medium">🔇 Voice will be generated silently (not heard directly)</p>
+                       <p className="text-yellow-400">🎛️ Voice will be mixed with music after generation is complete</p>
+                       <p className="text-green-400 font-medium">⚡ Fast Mode: Generation in ~10 seconds</p>
+                       <div>• 🎼 Harmonic integration with melody</div>
+                       <div>• 🎛️ Tone-changing without blur</div>
+                       <div>• ⚡ Single voice placement for speed</div>
+                       <div>• 🎚️ Adaptive volume with music</div>
+                       <div>• 🔊 Voice enhanced with music ducking</div>
+                       <div>• 🚀 Minimal processing for optimal speed</div>
+                       <div>• 🎧 Balanced audio quality</div>
                     </div>
                   </div>
                 </div>
