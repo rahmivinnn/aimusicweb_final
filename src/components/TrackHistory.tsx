@@ -85,7 +85,7 @@ const TrackHistory: React.FC = () => {
 
   return (
     <div className="max-w-5xl mx-auto p-6">
-      <h1 className="text-4xl font-bold text-white mb-6">My Library</h1>
+      <h1 className="text-4xl font-bold text-white mb-6">Remix History</h1>
       <div className="space-y-4">
         {tracks.map((track, index) => (
           <motion.div
