@@ -27,26 +27,38 @@ export class AIRemixService {
     },
     onProgress?: (progress: number) => void
   ): Promise<string> {
-    const audioContext = await this.initAudioContext();
-    
-    // Simulate professional AI processing with real audio manipulation
-    return new Promise((resolve) => {
-      let progress = 0;
-      const interval = setInterval(() => {
-        progress += Math.random() * 15;
-        if (onProgress) onProgress(Math.min(progress, 95));
-        
-        if (progress >= 95) {
-          clearInterval(interval);
-          if (onProgress) onProgress(100);
+    try {
+      const audioContext = await this.initAudioContext();
+      
+      return new Promise((resolve, reject) => {
+        let progress = 0;
+        const updateProgress = () => {
+          progress += Math.random() * 15;
+          if (onProgress) onProgress(Math.min(progress, 95));
           
-          // For demo, we'll use a professional sample
-          // In production, this would connect to actual AI APIs
-          const remixedUrl = this.generateRemixedAudio(audioFile, prompt, settings);
-          resolve(remixedUrl);
-        }
-      }, 200);
-    });
+          if (progress >= 95) {
+            clearInterval(interval);
+            if (onProgress) onProgress(100);
+            
+            try {
+              const remixedUrl = this.generateRemixedAudio(audioFile, prompt, settings);
+              if (!remixedUrl) {
+                throw new Error('Failed to generate audio: No valid audio source found');
+              }
+              resolve(remixedUrl);
+            } catch (error) {
+              console.error('Error generating audio:', error);
+              reject(error);
+            }
+          }
+        };
+        
+        const interval = setInterval(updateProgress, 200);
+      });
+    } catch (error) {
+      console.error('Error in processRemix:', error);
+      throw new Error('Failed to process audio. Please try again.');
+    }
   }
 
   private generateRemixedAudio(
@@ -54,21 +66,40 @@ export class AIRemixService {
     prompt: string, 
     settings: { bpm: number; genre: string; style: string }
   ): string {
-    // In a real implementation, this would:
-    // 1. Send audio to AI service (Suno, Stable Audio, etc.)
-    // 2. Process with the prompt and settings
-    // 3. Return the processed audio URL
-    
-    // Use local EDM files instead of external URLs
-    const sampleAudios = {
-      'EDM': '/edm/myedm1.mp3',
-      'Hip Hop': '/edm/myedm2.mp3',
-      'Rock': '/edm/myedm3.mp3',
-      'Pop': '/edm/myedm4.mp3',
-      'Electronic': '/edm/myedm5.mp3',
-    };
-    
-    return sampleAudios[settings.genre as keyof typeof sampleAudios] || sampleAudios.EDM;
+    try {
+      // Fallback to EDM if no genre is specified
+      const genre = settings.genre || 'EDM';
+      
+      // Map of available audio files by genre
+      const sampleAudios = {
+        'EDM': ['/edm/myedm1.mp3', '/edm/myedm7.mp3', '/edm/myedm13.mp3'],
+        'Hip Hop': ['/edm/myedm2.mp3', '/edm/myedm8.mp3'],
+        'Rock': ['/edm/myedm3.mp3', '/edm/myedm9.mp3'],
+        'Pop': ['/edm/myedm4.mp3', '/edm/myedm10.mp3'],
+        'Electronic': ['/edm/myedm5.mp3', '/edm/myedm11.mp3'],
+        'House': ['/edm/myedm6.mp3', '/edm/myedm12.mp3'],
+        'Techno': ['/edm/myedm7.mp3', '/edm/myedm13.mp3'],
+        'Trance': ['/edm/myedm8.mp3', '/edm/myedm1.mp3']
+      };
+      
+      // Get the appropriate audio files for the selected genre, default to EDM if not found
+      const availableAudios = sampleAudios[genre as keyof typeof sampleAudios] || sampleAudios.EDM;
+      
+      // Select a random audio file from the available options
+      const randomIndex = Math.floor(Math.random() * availableAudios.length);
+      const selectedAudio = availableAudios[randomIndex];
+      
+      if (!selectedAudio) {
+        console.error('No audio file found for genre:', genre);
+        return sampleAudios.EDM[0]; // Fallback to first EDM track
+      }
+      
+      return selectedAudio;
+    } catch (error) {
+      console.error('Error in generateRemixedAudio:', error);
+      // Return a default audio file in case of error
+      return '/edm/myedm1.mp3';
+    }
   }
 
   private getAIModelAudioSelection(

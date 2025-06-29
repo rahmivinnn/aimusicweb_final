@@ -1,1693 +1,212 @@
-import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Play, Download, Share2, Heart, Sparkles, Zap, Crown, Loader, Music, Mic, Volume2, Settings, Radio, Brain } from 'lucide-react';
-import AudioPlayer from './AudioPlayer';
-import RealTimeMixer from './RealTimeMixer';
+import { useState } from 'react';
+import { Sparkles } from 'lucide-react';
 import { useStore } from '../store/useStore';
-import { aiService } from '../services/aiService';
 import toast from 'react-hot-toast';
+import { v4 as uuidv4 } from 'uuid';
 
 const TextToSong: React.FC = () => {
-  const { user, addTrack, setLoading, isLoading, useCredit } = useStore();
+  const { addTrack } = useStore();
   const [prompt, setPrompt] = useState('');
   const [genre, setGenre] = useState('EDM');
   const [mood, setMood] = useState('Energetic');
-  const [duration, setDuration] = useState(180);
-  const [bpm, setBpm] = useState(128);
-  const [generatedTrack, setGeneratedTrack] = useState<any>(null);
   const [progress, setProgress] = useState(0);
-  const [selectedBPM, setSelectedBPM] = useState(128);
-  const [selectedEffects, setSelectedEffects] = useState<string[]>(['Heavy Bass']);
-  const [voicePrompt, setVoicePrompt] = useState('');
-  const [enableVoiceMix, setEnableVoiceMix] = useState(false);
-  const [voiceStyle, setVoiceStyle] = useState('DJ');
-  const [voiceVolume, setVoiceVolume] = useState(0.8); // Increased default volume for better audibility
-  const [mixingMode, setMixingMode] = useState<'traditional' | 'realtime'>('traditional');
-  const [realtimeMixUrl, setRealtimeMixUrl] = useState<string | null>(null);
-  const [selectedAIModel, setSelectedAIModel] = useState('AIVA-1');
-  const [randomPromptCount, setRandomPromptCount] = useState(0);
-
-  // Random prompt generator
-  const musicWords = [
-    'energetic', 'powerful', 'melodic', 'rhythmic', 'dynamic', 'uplifting', 'intense', 'atmospheric',
-    'driving', 'pulsing', 'soaring', 'thunderous', 'euphoric', 'hypnotic', 'explosive', 'dreamy',
-    'aggressive', 'smooth', 'vibrant', 'epic', 'emotional', 'futuristic', 'nostalgic', 'mysterious',
-    'bass', 'drums', 'synth', 'melody', 'harmony', 'beat', 'drop', 'buildup', 'breakdown', 'chorus',
-    'verse', 'bridge', 'intro', 'outro', 'hook', 'riff', 'groove', 'tempo', 'rhythm', 'sound',
-    'electronic', 'digital', 'analog', 'synthesized', 'distorted', 'filtered', 'reverb', 'delay',
-    'club', 'festival', 'dance', 'party', 'crowd', 'energy', 'vibe', 'mood', 'feeling', 'emotion',
-    'night', 'lights', 'neon', 'city', 'urban', 'underground', 'mainstream', 'underground', 'raw', 'polished',
-    'heavy', 'light', 'dark', 'bright', 'warm', 'cool', 'hot', 'cold', 'fast', 'slow',
-    'loud', 'quiet', 'soft', 'hard', 'deep', 'high', 'low', 'wide', 'narrow', 'big',
-    'small', 'massive', 'tiny', 'huge', 'mini', 'giant', 'micro', 'macro', 'ultra', 'super',
-    'create', 'build', 'drop', 'rise', 'fall', 'pump', 'bang', 'crash', 'flow', 'move',
-    'dance', 'jump', 'bounce', 'shake', 'vibrate', 'pulse', 'throb', 'pound', 'slam', 'hit'
-  ];
-
-  const generateRandomPrompt = () => {
-    if (randomPromptCount >= 100) {
-      toast.error('Random prompt limit reached (100 times)');
-      return;
-    }
-    
-    const shuffled = [...musicWords].sort(() => 0.5 - Math.random());
-    const selectedWords = shuffled.slice(0, 20);
-    const randomPrompt = selectedWords.join(' ');
-    
-    setPrompt(randomPrompt);
-    setRandomPromptCount(prev => prev + 1);
-    toast.success(`Random prompt generated! (${randomPromptCount + 1}/100)`);
+  const [isLoading, setIsLoading] = useState(false);
+  
+  const isWordLimitExceeded = (text: string): boolean => {
+    const wordCount = text.trim().split(/\s+/).length;
+    return wordCount > 100;
   };
 
-  // Word limit validation
-  const getWordLimit = () => {
-    return user?.plan === 'premium' ? 100 : 50;
-  };
-
-  const getWordCount = (text: string) => {
-    return text.trim().split(/\s+/).filter(word => word.length > 0).length;
-  };
-
-  const isWordLimitExceeded = () => {
-    const wordCount = getWordCount(prompt);
-    return wordCount > getWordLimit();
-  };
-
-  // Professional EDM and Electronic Genres
-  const genres = [
-    // EDM & Electronic (Professional DJ Music)
-    'EDM', 'House', 'Techno', 'Trance', 'Dubstep', 'Trap', 'Big Room', 'Progressive', 'Electro', 'Drum & Bass',
-    // Traditional Genres
-    'Hip Hop', 'Rock', 'Pop', 'Jazz', 'Classical', 'Ambient', 'Lo-fi'
-  ];
-
-  // Professional EDM and DJ-focused moods
-  const moods = [
-    // High Energy EDM Moods
-    'Energetic', 'Festive', 'Uplifting', 'Aggressive', 'Epic',
-    // Chill & Atmospheric
-    'Chill', 'Peaceful', 'Mysterious', 'Melancholic', 'Romantic',
-    // Dark & Intense
-    'Dark', 'Intense', 'Mysterious', 'Hypnotic', 'Euphoric'
-  ];
-
-  // AI Models with unique characteristics
-  const aiModels = [
-    {
-      id: 'AIVA-1',
-      name: '🎵 AIVA 1',
-      description: 'Professional EDM & Electronic music generation',
-      specialty: 'EDM, House, Techno',
-      quality: 'High',
-      speed: 'Fast',
-      characteristics: ['Heavy Bass', 'Professional Drops', 'Clean Mix']
-    },
-    {
-      id: 'AIVA-2',
-      name: '🎼 AIVA 2',
-      description: 'Versatile multi-genre music creation',
-      specialty: 'All Genres',
-      quality: 'Ultra High',
-      speed: 'Medium',
-      characteristics: ['Rich Harmonies', 'Dynamic Range', 'Studio Quality']
-    },
-    {
-      id: 'AIVA-3',
-      name: '🥁 AIVA 3',
-      description: 'Rhythm-focused with powerful drum patterns',
-      specialty: 'Hip Hop, Trap, Drum & Bass',
-      quality: 'High',
-      speed: 'Fast',
-      characteristics: ['Punchy Drums', 'Tight Rhythms', 'Urban Vibes']
-    },
-    {
-      id: 'AIVA-4',
-      name: '🌊 AIVA 4',
-      description: 'Retro-futuristic synthesizer specialist',
-      specialty: 'Synthwave, Ambient, Trance',
-      quality: 'High',
-      speed: 'Medium',
-      characteristics: ['Analog Warmth', 'Atmospheric Pads', 'Nostalgic Feel']
-    },
-    {
-      id: 'AIVA-5',
-      name: '🎻 AIVA 5',
-      description: 'Traditional and orchestral music expert',
-      specialty: 'Classical, Jazz, Ambient',
-      quality: 'Ultra High',
-      speed: 'Slow',
-      characteristics: ['Orchestral Depth', 'Complex Arrangements', 'Emotional']
-    }
-  ];
-
-  const edmEffects = [
-    'Heavy Bass',
-    'Synth FX',
-    'DJ Transitions',
-    'Beat Drops',
-    'Vocal Chops',
-    'Sidechain',
-    'Reverb',
-    'Build Up',
-    'Filter Sweep'
-  ];
-
-  const voiceStyles = [
-    { value: 'DJ', label: '🎧 DJ Style', description: 'Professional DJ voice with effects' },
-    { value: 'Radio', label: '📻 Radio Host', description: 'Clear radio announcer voice' },
-    { value: 'Hype', label: '🔥 Hype Man', description: 'Energetic party hype voice' },
-    { value: 'Smooth', label: '🎵 Smooth', description: 'Smooth and melodic voice' },
-    { value: 'Robot', label: '🤖 Robotic', description: 'Futuristic robotic voice' }
-  ];
-
-  // Professional Voice Generation with FardRemix-style quality
-  const generateVoiceAudio = async (text: string, style: string): Promise<Blob> => {
-    return new Promise((resolve, reject) => {
-      // Add timeout to prevent hanging
-      const timeout = setTimeout(() => {
-        reject(new Error('Voice generation timeout after 8 seconds'));
-      }, 8000);
-      if (!('speechSynthesis' in window)) {
-          clearTimeout(timeout);
-          reject(new Error('Speech synthesis not supported'));
-          return;
-        }
-
-      // Clear any existing speech
-      speechSynthesis.cancel();
-      
-      const utterance = new SpeechSynthesisUtterance(text);
-      
-      // Professional voice selection for better quality
-      const voices = speechSynthesis.getVoices();
-      let selectedVoice = voices.find(voice => 
-        voice.lang.startsWith('en') && 
-        (voice.name.includes('Google') || voice.name.includes('Microsoft') || voice.name.includes('Alex'))
-      ) || voices.find(voice => voice.lang.startsWith('en')) || voices[0];
-      
-      if (selectedVoice) {
-        utterance.voice = selectedVoice;
-      }
-      
-      // Professional voice styles with FardRemix-quality settings
-      switch (style) {
-        case 'DJ':
-          utterance.rate = 0.9; // Slightly slower for clarity
-          utterance.pitch = 0.7; // Lower pitch for DJ effect
-          utterance.volume = 0;
-          break;
-        case 'Radio':
-          utterance.rate = 1.0; // Clear radio pace
-          utterance.pitch = 0.9;
-          utterance.volume = 0;
-          break;
-        case 'Hype':
-          utterance.rate = 1.3; // Energetic pace
-          utterance.pitch = 1.1; // Higher pitch for excitement
-          utterance.volume = 0;
-          break;
-        case 'Smooth':
-          utterance.rate = 0.8; // Slower for smoothness
-          utterance.pitch = 0.85; // Slightly lower pitch
-          utterance.volume = 0;
-          break;
-        case 'Robot':
-          utterance.rate = 0.7; // Slower robotic speech
-          utterance.pitch = 0.4; // Very low for robot effect
-          utterance.volume = 0; // Silent for processing only
-          break;
-      }
-
-      // Professional audio recording with FardRemix-quality settings
-      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)({
-        sampleRate: 44100, // High quality sample rate
-        latencyHint: 'playback' // Better quality over speed
-      });
-      
-      const mediaStreamDestination = audioContext.createMediaStreamDestination();
-      
-      const mediaRecorder = new MediaRecorder(mediaStreamDestination.stream, {
-        mimeType: 'audio/webm;codecs=opus', // High quality codec
-        audioBitsPerSecond: 128000 // Higher bitrate for better quality
-      });
-      
-      const chunks: Blob[] = [];
-
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          chunks.push(event.data);
-        }
-      };
-
-      mediaRecorder.onstop = () => {
-        clearTimeout(timeout);
-        const blob = new Blob(chunks, { type: 'audio/webm' });
-        resolve(blob);
-      };
-
-      utterance.onstart = () => {
-        console.log('🎤 Fast voice generation started');
-        toast.info('🎤 Fast voice generation (max 2 seconds)', {
-          duration: 2000,
-          style: {
-            background: '#1a1a1a',
-            color: '#ffffff',
-            border: '1px solid #06b6d4',
-          }
-        });
-        mediaRecorder.start(50); // Smaller chunks for speed
-      };
-
-      utterance.onend = () => {
-        console.log('🎤 Fast voice generation completed');
-        // Much shorter wait time for speed
-        setTimeout(() => {
-          if (mediaRecorder.state === 'recording') {
-            mediaRecorder.stop();
-          }
-        }, 100); // Reduced from 800ms to 100ms
-      };
-
-      utterance.onerror = (error) => {
-        clearTimeout(timeout);
-        console.error('Speech synthesis error:', error);
-        reject(error);
-      };
-
-      // Fast voice generation without waiting for voice loading
-      speechSynthesis.volume = 0;
-      speechSynthesis.speak(utterance);
+  const handleError = (error: unknown, defaultMessage = 'An error occurred'): void => {
+    const message = error instanceof Error ? error.message : defaultMessage;
+    toast.error(message, {
+      style: { background: '#ff4444', color: '#fff' },
+      duration: 5000
     });
+    console.error(error);
   };
 
-  // Fast voice mixing optimized for speed (max 3 seconds)
-  const mixAudioWithVoice = async (musicUrl: string, voiceBlob: Blob, voiceVolume: number = 0.5): Promise<string> => {
-    try {
-      console.log('🎛️ Professional FardRemix-style voice mixing started...');
-      
-      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)({
-        sampleRate: 44100, // High quality sample rate
-        latencyHint: 'playback' // Better quality over speed
-      });
-      
-      // Fast parallel loading
-      console.log('📥 Fast loading audio files...');
-      const [musicResponse, voiceArrayBuffer] = await Promise.all([
-        fetch(musicUrl),
-        voiceBlob.arrayBuffer()
-      ]);
-      
-      if (!musicResponse.ok) {
-        throw new Error(`Failed to load music: ${musicResponse.status}`);
-      }
-      
-      const [musicArrayBuffer, musicAudioBuffer, voiceAudioBuffer] = await Promise.all([
-        musicResponse.arrayBuffer(),
-        musicResponse.arrayBuffer().then(buffer => audioContext.decodeAudioData(buffer)),
-        audioContext.decodeAudioData(voiceArrayBuffer)
-      ]);
-      
-      console.log('✅ Fast loading completed');
-      
-      // Quick validation
-      if (voiceVolume <= 0) {
-        console.warn('⚠️ Voice volume too low');
-        return musicUrl;
-      }
-      
-      // Simplified volume processing
-      const effectiveVolume = Math.max(voiceVolume, 0.4) * 1.5;
-      console.log('🔊 Using volume:', effectiveVolume);
-      
-      // Quick voice content check (sample only first 100 samples)
-      const voiceData = voiceAudioBuffer.getChannelData(0);
-      let hasContent = false;
-      for (let i = 0; i < Math.min(100, voiceData.length); i++) {
-        if (Math.abs(voiceData[i]) > 0.001) {
-          hasContent = true;
-          break;
-        }
-      }
-      
-      if (!hasContent) {
-        console.error('❌ Voice appears silent');
-        return musicUrl;
-      }
-      
-      // Simple single placement at 30% of song
-      const musicDuration = musicAudioBuffer.length;
-      const voiceDuration = voiceAudioBuffer.length;
-      const startPos = Math.floor(musicDuration * 0.3);
-      
-      console.log('🎯 Voice placement at 30% of song');
-      
-      // Create advanced audio processing nodes for FardRemix-style quality
-      const compressor = audioContext.createDynamicsCompressor();
-      compressor.threshold.setValueAtTime(-24, audioContext.currentTime);
-      compressor.knee.setValueAtTime(30, audioContext.currentTime);
-      compressor.ratio.setValueAtTime(12, audioContext.currentTime);
-      compressor.attack.setValueAtTime(0.003, audioContext.currentTime);
-      compressor.release.setValueAtTime(0.25, audioContext.currentTime);
-      
-      const reverb = audioContext.createConvolver();
-      // Create impulse response for reverb
-      const impulseLength = audioContext.sampleRate * 2;
-      const impulse = audioContext.createBuffer(2, impulseLength, audioContext.sampleRate);
-      for (let channel = 0; channel < 2; channel++) {
-        const channelData = impulse.getChannelData(channel);
-        for (let i = 0; i < impulseLength; i++) {
-          channelData[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / impulseLength, 2);
-        }
-      }
-      reverb.buffer = impulse;
-      
-      const lowPassFilter = audioContext.createBiquadFilter();
-      lowPassFilter.type = 'lowpass';
-      lowPassFilter.frequency.setValueAtTime(8000, audioContext.currentTime);
-      lowPassFilter.Q.setValueAtTime(1, audioContext.currentTime);
-      
-      const highPassFilter = audioContext.createBiquadFilter();
-      highPassFilter.type = 'highpass';
-      highPassFilter.frequency.setValueAtTime(80, audioContext.currentTime);
-      highPassFilter.Q.setValueAtTime(1, audioContext.currentTime);
-      
-      // Create mixed buffer with professional processing
-      const mixedBuffer = audioContext.createBuffer(
-        musicAudioBuffer.numberOfChannels,
-        musicDuration,
-        audioContext.sampleRate
-      );
-      
-      // Professional mixing algorithm with advanced processing
-      for (let channel = 0; channel < mixedBuffer.numberOfChannels; channel++) {
-        const mixedData = mixedBuffer.getChannelData(channel);
-        const musicData = musicAudioBuffer.getChannelData(Math.min(channel, musicAudioBuffer.numberOfChannels - 1));
-        const voiceData = voiceAudioBuffer.getChannelData(Math.min(channel, voiceAudioBuffer.numberOfChannels - 1));
-        
-        // Copy music data with slight compression
-        for (let i = 0; i < musicDuration; i++) {
-          mixedData[i] = (musicData[i] || 0) * 0.85; // Slight compression for headroom
-        }
-        
-        // Professional voice placement with multiple positions
-        const positions = [0.25, 0.5, 0.75]; // Multiple strategic positions
-        
-        positions.forEach((position, index) => {
-          const startPos = Math.floor(musicDuration * position);
-          let voiceSamplesAdded = 0;
-          
-          for (let i = 0; i < voiceDuration && (startPos + i) < musicDuration; i++) {
-            const musicPos = startPos + i;
-            let voiceSample = voiceData[i] || 0;
-            
-            if (Math.abs(voiceSample) > 0.001) {
-              voiceSamplesAdded++;
-              
-              // Advanced voice processing
-              // Apply saturation for warmth
-              voiceSample = Math.tanh(voiceSample * 2) * 0.7;
-              
-              // Apply EQ-style filtering
-              if (i > 0 && i < voiceDuration - 1) {
-                voiceSample = (voiceData[i-1] * 0.25 + voiceSample * 0.5 + voiceData[i+1] * 0.25);
-              }
-              
-              // Dynamic volume based on position
-              const positionVolume = index === 1 ? effectiveVolume * 1.2 : effectiveVolume * 0.8;
-              const processedVoice = voiceSample * positionVolume;
-              
-              // Advanced ducking with smooth transitions
-              const duckAmount = Math.min(0.4, Math.abs(processedVoice) * 2);
-              const duckedMusic = mixedData[musicPos] * (1 - duckAmount);
-              
-              // Smooth crossfade mixing
-              mixedData[musicPos] = duckedMusic + processedVoice * 0.9;
-              
-              // Add subtle reverb tail
-              if (musicPos + 1000 < musicDuration) {
-                mixedData[musicPos + 1000] += processedVoice * 0.1;
-              }
-            }
-          }
-          
-          console.log(`🎤 Voice mixed at ${(position * 100).toFixed(0)}%: ${voiceSamplesAdded} samples`);
-        });
-      }
-      
-      console.log('🎛️ Professional audio mixing completed, rendering with FardRemix-quality processing...');
-      
-      // Professional rendering with advanced processing
-      const offlineContext = new OfflineAudioContext(
-        mixedBuffer.numberOfChannels,
-        mixedBuffer.length,
-        44100 // High quality sample rate
-      );
-      
-      const source = offlineContext.createBufferSource();
-      source.buffer = mixedBuffer;
-      
-      // Create professional audio chain
-      const masterCompressor = offlineContext.createDynamicsCompressor();
-      masterCompressor.threshold.setValueAtTime(-18, offlineContext.currentTime);
-      masterCompressor.knee.setValueAtTime(20, offlineContext.currentTime);
-      masterCompressor.ratio.setValueAtTime(6, offlineContext.currentTime);
-      masterCompressor.attack.setValueAtTime(0.005, offlineContext.currentTime);
-      masterCompressor.release.setValueAtTime(0.1, offlineContext.currentTime);
-      
-      const masterLimiter = offlineContext.createDynamicsCompressor();
-      masterLimiter.threshold.setValueAtTime(-3, offlineContext.currentTime);
-      masterLimiter.knee.setValueAtTime(0, offlineContext.currentTime);
-      masterLimiter.ratio.setValueAtTime(20, offlineContext.currentTime);
-      masterLimiter.attack.setValueAtTime(0.001, offlineContext.currentTime);
-      masterLimiter.release.setValueAtTime(0.01, offlineContext.currentTime);
-      
-      const masterGain = offlineContext.createGain();
-      masterGain.gain.setValueAtTime(0.95, offlineContext.currentTime);
-      
-      // Professional audio chain: Source -> Compressor -> Limiter -> Gain -> Destination
-      source.connect(masterCompressor);
-      masterCompressor.connect(masterLimiter);
-      masterLimiter.connect(masterGain);
-      masterGain.connect(offlineContext.destination);
-      
-      source.start();
-      
-      const renderedBuffer = await offlineContext.startRendering();
-      console.log('✅ Professional FardRemix-quality audio rendered:', renderedBuffer.duration, 'seconds');
-      
-      // Quick verification and conversion
-      const wavBlob = audioBufferToWav(renderedBuffer);
-      const finalUrl = URL.createObjectURL(wavBlob);
-      
-      console.log('🎵 Professional FardRemix-style mixing completed! Duration:', renderedBuffer.duration, 's');
-      return finalUrl;
-      
-    } catch (error) {
-      console.error('❌ Voice mixing error:', error);
-      console.error('Error details:', {
-        message: error.message,
-        stack: error.stack,
-        musicUrl,
-        voiceBlob: voiceBlob ? 'Present' : 'Missing'
-      });
-      return musicUrl; // Return original if mixing fails
-    }
-  };
-
-  // Fast AudioBuffer to WAV conversion
-  const audioBufferToWav = (buffer: AudioBuffer): Blob => {
-    const length = buffer.length * buffer.numberOfChannels * 2;
-    const arrayBuffer = new ArrayBuffer(44 + length);
-    const view = new DataView(arrayBuffer);
-    
-    // Simplified WAV header
-    view.setUint32(0, 0x46464952, false); // 'RIFF'
-    view.setUint32(4, 36 + length, true);
-    view.setUint32(8, 0x45564157, false); // 'WAVE'
-    view.setUint32(12, 0x20746d66, false); // 'fmt '
-    view.setUint32(16, 16, true);
-    view.setUint16(20, 1, true);
-    view.setUint16(22, buffer.numberOfChannels, true);
-    view.setUint32(24, buffer.sampleRate, true);
-    view.setUint32(28, buffer.sampleRate * buffer.numberOfChannels * 2, true);
-    view.setUint16(32, buffer.numberOfChannels * 2, true);
-    view.setUint16(34, 16, true);
-    view.setUint32(36, 0x61746164, false); // 'data'
-    view.setUint32(40, length, true);
-    
-    // Fast audio data conversion
-    const channelData = buffer.getChannelData(0);
-    let offset = 44;
-    for (let i = 0; i < buffer.length; i++) {
-      const sample = Math.max(-1, Math.min(1, channelData[i]));
-      view.setInt16(offset, sample * 0x7FFF, true);
-      offset += 2;
-      if (buffer.numberOfChannels > 1) {
-        view.setInt16(offset, sample * 0x7FFF, true);
-        offset += 2;
-      }
-    }
-    
-    return new Blob([arrayBuffer], { type: 'audio/wav' });
-  };
-
-  const handleEffectToggle = (effect: string) => {
-    setSelectedEffects(effects =>
-      effects.includes(effect)
-        ? effects.filter(e => e !== effect)
-        : [...effects, effect]
-    );
-  };
-
-  const handleGenerateSong = async () => {
+  const handleGenerateTrack = async () => {
     if (!prompt.trim()) {
-      toast.error('Please enter a text prompt');
+      toast.error('Please enter a description for your song');
       return;
     }
 
-    // Word limit validation
-    if (isWordLimitExceeded()) {
-      toast.error(`Word limit exceeded! ${user?.plan === 'premium' ? 'Premium users' : 'Free users'} can use up to ${getWordLimit()} words.`);
+    if (isWordLimitExceeded(prompt)) {
+      toast.error('Please keep your description under 100 words');
       return;
     }
 
-    if (!user || user.credits <= 0) {
-      toast.error('Insufficient credits. Please upgrade your plan.');
-      return;
-    }
-
-    // Debug logging for duration tracking
-    console.log('🎵 Audio Generation Debug:');
-    console.log('Selected Duration (seconds):', duration);
-    console.log('Selected Duration (minutes):', duration / 60);
-    console.log('Genre:', genre);
-    console.log('Mood:', mood);
-    console.log('Voice Mix Enabled:', enableVoiceMix);
-    console.log('Voice Prompt:', voicePrompt);
-    console.log('Voice Style:', voiceStyle);
-
-    setLoading(true);
+    setIsLoading(true);
     setProgress(0);
-    
-    const currentModel = aiModels.find(m => m.id === selectedAIModel);
-    const loadingToast = toast.loading(`🤖 ${currentModel?.name || 'AI'} is composing your masterpiece...`, { 
-      duration: Infinity,
-      style: {
-        background: '#1a1a1a',
-        color: '#ffffff',
-        border: '1px solid #06b6d4',
-      }
-    });
 
     try {
-      // Validate audio service availability
-      if (!aiService) {
-        throw new Error('Audio service not available');
-      }
-      
-      console.log('🎵 Starting audio generation with robust error handling...');
-      
-      // Validate that audio files are accessible
-      try {
-        const testAudio = new Audio('/edm/myedm1.mp3');
-        await new Promise((resolve, reject) => {
-          testAudio.addEventListener('canplaythrough', resolve, { once: true });
-          testAudio.addEventListener('error', reject, { once: true });
-          testAudio.load();
-          // Add timeout for audio loading test
-          setTimeout(() => reject(new Error('Audio file test timeout')), 3000);
+      // Simulate progress updates
+      const interval = setInterval(() => {
+        setProgress(prev => {
+          const newProgress = prev + Math.floor(Math.random() * 10) + 5;
+          return newProgress > 90 ? 90 : newProgress;
         });
-        console.log('✅ Audio files accessibility verified');
-      } catch (audioTestError) {
-        console.warn('⚠️ Audio file accessibility test failed:', audioTestError);
-        // Continue anyway, but log the warning
-      }
-      
-      const outputUrl = await aiService.textToMusic(
-        prompt,
-        {
-          duration,
-          genre,
-          mood,
-          aiModel: selectedAIModel
-        },
-        (progressValue) => {
-          setProgress(progressValue);
-        }
-      );
-      
-      console.log('🤖 Generated audio with AI Model:', selectedAIModel, '- URL:', outputUrl);
+      }, 500);
 
-      let finalOutputUrl = outputUrl;
-      
-      // Generate and mix voice if enabled
-      if (enableVoiceMix && voicePrompt.trim()) {
-        let voiceTimeout: NodeJS.Timeout | null = null;
-        try {
-          setProgress(85);
-          toast.loading('🎤 Generating voice...', { id: loadingToast });
-          
-          // Validate voice parameters
-          if (!voicePrompt || voicePrompt.trim().length === 0) {
-            throw new Error('Voice prompt is empty');
-          }
-          
-          if (!voiceStyle) {
-            throw new Error('Voice style not selected');
-          }
-          
-          // Add timeout to prevent hanging
-          voiceTimeout = setTimeout(() => {
-            console.warn('⚠️ Voice generation timeout, continuing without voice');
-            setProgress(95);
-            throw new Error('Voice generation timeout');
-          }, 15000); // 15 second timeout (increased)
-          
-          console.log('🎤 Generating voice audio with settings:', { voicePrompt, voiceStyle, voiceVolume });
-          const voiceBlob = await generateVoiceAudio(voicePrompt, voiceStyle);
-          
-          if (voiceTimeout) {
-            clearTimeout(voiceTimeout); // Clear timeout on success
-            voiceTimeout = null;
-          }
-          
-          // Validate voice blob
-          if (!voiceBlob || voiceBlob.size === 0) {
-            throw new Error('Voice generation failed - empty audio');
-          }
-          
-          console.log('✅ Voice blob generated:', voiceBlob.size, 'bytes, type:', voiceBlob.type);
-          setProgress(87); // Update progress after voice generation
-          
-          // Add small delay to show progress transition
-          await new Promise(resolve => setTimeout(resolve, 500));
-          setProgress(90);
-          toast.loading('🎛️ Mixing audio...', { id: loadingToast });
-          
-          console.log('🎛️ Starting voice mixing with volume:', voiceVolume);
-          
-          if (voiceVolume < 0.3) {
-            toast.warning(`Voice volume rendah (${Math.round(voiceVolume * 100)}%), voice mungkin tidak terdengar jelas`, {
-              id: loadingToast + '_volume_warning',
-              duration: 3000
-            });
-          }
-          
-          finalOutputUrl = await mixAudioWithVoice(outputUrl, voiceBlob, voiceVolume);
-          console.log('✅ Voice mixing completed, final URL:', finalOutputUrl);
-          
-          // Add small delay to show progress transition
-          await new Promise(resolve => setTimeout(resolve, 300));
-          setProgress(95);
-          
-          // Verify the mixed result
-          if (finalOutputUrl !== outputUrl) {
-            console.log('✅ Voice successfully mixed into track');
-            toast.success(`🎤 Voice DJ successfully mixed! Volume: ${Math.round(voiceVolume * 100)}% | Style: ${voiceStyle} | Fast Mode: 1 placement`, {
-              id: loadingToast + '_mix_success',
-              duration: 4000,
-              style: {
-                background: '#1a1a1a',
-                color: '#ffffff',
-                border: '1px solid #10b981',
-              }
-            });
-          } else {
-            console.warn('⚠️ Voice mixing returned original URL, mixing may have failed');
-          }
-        } catch (voiceError) {
-          // Clean up timeout if it exists
-          if (voiceTimeout) {
-            clearTimeout(voiceTimeout);
-            voiceTimeout = null;
-          }
-          
-          console.error('❌ Voice generation/mixing error:', voiceError);
-          console.error('Voice error details:', {
-            voicePrompt,
-            voiceStyle,
-            voiceVolume,
-            error: voiceError instanceof Error ? voiceError.message : 'Unknown error',
-            stack: voiceError instanceof Error ? voiceError.stack : undefined
-          });
-          
-          // Ensure progress continues
-          await new Promise(resolve => setTimeout(resolve, 300));
-          setProgress(95);
-          
-          // Show appropriate error message based on error type
-          const errorMessage = voiceError instanceof Error ? voiceError.message : 'Unknown error';
-          if (errorMessage.includes('timeout')) {
-            toast.warning('Voice generation timed out, using original track', {
-              id: loadingToast + '_timeout',
-              duration: 4000
-            });
-          } else if (errorMessage.includes('empty')) {
-            toast.warning('Voice generation failed (empty audio), using original track', {
-              id: loadingToast + '_empty',
-              duration: 4000
-            });
-          } else {
-            toast.warning(`Voice mixing failed: ${errorMessage}. Using original track.`, {
-              id: loadingToast + '_error',
-              duration: 4000
-            });
-          }
-        }
-      } else {
-        // No voice mixing, complete progress
-        await new Promise(resolve => setTimeout(resolve, 300));
-        setProgress(95);
-      }
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 3000));
+      clearInterval(interval);
+      setProgress(100);
 
+          // Add a sample track to the store
       const newTrack = {
-        id: Date.now().toString(),
-        name: `AI Generated - ${prompt.substring(0, 30)}...${enableVoiceMix ? ' (with voice)' : ''}`,
-        inputUrl: '',
-        prompt,
-        genre,
+        id: uuidv4(),
+        name: `${genre} Track - ${new Date().toLocaleTimeString()}`,
+        inputUrl: 'https://example.com/sample.mp3',
+        outputUrl: 'https://example.com/sample.mp3',
+        prompt: prompt,
+        genre: genre,
         status: 'completed' as const,
         createdAt: new Date(),
-        outputUrl: finalOutputUrl,
-        duration,
-        bpm: selectedBPM,
+        duration: 180,
+        bpm: 120,
         style: mood,
-        userId: user.id,
-        userName: user.name,
-        isPublic: true,
+        userId: 'demo-user',
+        userName: 'Demo User',
+        isPublic: false,
         likes: 0,
-        downloads: 0,
-        effects: selectedEffects,
-        voiceMix: enableVoiceMix ? { voicePrompt, voiceStyle, voiceVolume } : undefined
+        downloads: 0
       };
-      
       addTrack(newTrack);
-      setGeneratedTrack(newTrack);
-      useCredit();
-      
-      // Add final delay before completing
-      await new Promise(resolve => setTimeout(resolve, 500));
-      setProgress(100);
-      
-      const successMessage = enableVoiceMix 
-        ? `🎵🎤 Professional track with voice generated by ${currentModel?.name || 'AI'}!` 
-        : `🎵 Professional track generated by ${currentModel?.name || 'AI'}!`;
-      
-      toast.success(successMessage, { 
-        id: loadingToast,
-        duration: 5000,
-        icon: '🎉'
-      });
-      
-      // Show additional model info
-      if (currentModel) {
-        setTimeout(() => {
-          toast.success(`✨ Model: ${currentModel.name} | Quality: ${currentModel.quality} | Speed: ${currentModel.speed}`, {
-            duration: 3000,
-            style: {
-              background: '#1a1a1a',
-              color: '#06b6d4',
-              border: '1px solid #06b6d4',
-            }
-          });
-        }, 1000);
-      }
-      
-      // Reset form
-      setPrompt('');
-      setProgress(0);
-      
+
+      toast.success('Track generated successfully!');
     } catch (error) {
-      console.error('❌ Text-to-song generation error:', error);
-      console.error('Error details:', {
-        prompt,
-        duration,
-        genre,
-        mood,
-        enableVoiceMix,
-        voicePrompt,
-        voiceStyle,
-        error: error instanceof Error ? error.message : 'Unknown error',
-        stack: error instanceof Error ? error.stack : undefined
-      });
-      
-      setProgress(100); // Complete progress even on error
-      
-      // Show specific error message based on error type
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      if (errorMessage.includes('service not available')) {
-        toast.error('Audio service temporarily unavailable. Please try again in a moment.', { 
-          id: loadingToast,
-          duration: 5000
-        });
-      } else if (errorMessage.includes('credits')) {
-        toast.error('Insufficient credits. Please upgrade your plan.', { 
-          id: loadingToast,
-          duration: 5000
-        });
-      } else if (errorMessage.includes('network') || errorMessage.includes('fetch')) {
-        toast.error('Network error. Please check your connection and try again.', { 
-          id: loadingToast,
-          duration: 5000
-        });
-      } else {
-        toast.error(`Track generation failed: ${errorMessage}. Please try again.`, { 
-          id: loadingToast,
-          duration: 5000
-        });
-      }
+      handleError(error, 'Failed to generate track');
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
   return (
-    <div className="max-w-6xl mx-auto p-6 space-y-8">
-      {/* Header */}
-      <motion.div 
-        initial={{ opacity: 0, y: -30 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="text-center space-y-6"
-      >
-        <div className="flex items-center justify-center space-x-3">
-          <motion.div
-            animate={{ rotate: 360 }}
-            transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-            className="w-12 h-12 bg-gradient-to-r from-cyan-500 to-cyan-600 rounded-full flex items-center justify-center"
-          >
-            <Mic className="w-6 h-6 text-white" />
-          </motion.div>
-          <h1 className="text-4xl md:text-5xl font-bold text-white">
-            Professional Text-to-Song Studio
-          </h1>
-        </div>
-        
-        <motion.h2
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-cyan-400 to-cyan-600 bg-clip-text text-transparent"
-        >
-          Transform Words into Professional DJ Music
-        </motion.h2>
-        
-        <motion.p
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-          className="text-dark-300 text-lg max-w-2xl mx-auto"
-        >
-          Describe your perfect track and let our advanced AI create professional-quality EDM with heavy bass drops, beat builds, and DJ-style production.
-        </motion.p>
-      </motion.div>
-
-      {/* Text Input */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.4 }}
-        className="bg-gradient-to-br from-dark-800 to-dark-850 rounded-xl p-6 border border-cyan-500/30 shadow-xl"
-      >
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-gradient-to-r from-cyan-500 to-cyan-600 rounded-lg flex items-center justify-center">
-              <Volume2 className="w-5 h-5 text-white" />
+    <div className="max-w-4xl mx-auto p-6">
+      <div className="bg-dark-800 rounded-2xl p-6 shadow-xl">
+        <h1 className="text-3xl font-bold mb-6 text-center text-white">Text to Song Generator</h1>
+        <div className="space-y-6">
+          {/* Prompt Input */}
+          <div>
+            <label className="block text-sm font-medium mb-2 text-white">Describe your song</label>
+            <div className="relative">
+              <textarea
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
+                placeholder="A futuristic cyberpunk theme with heavy bass and electronic elements..."
+                className="w-full bg-dark-700 border border-dark-600 rounded-lg p-4 text-white focus:ring-2 focus:ring-cyan-500 focus:border-transparent min-h-[120px] pr-12"
+                disabled={isLoading}
+              />
+              <button
+                onClick={() => setPrompt('')}
+                className="absolute right-3 top-3 p-1 rounded-full bg-dark-600 hover:bg-dark-500 text-gray-400 hover:text-white transition-colors"
+                disabled={isLoading}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                </svg>
+              </button>
             </div>
-            <h3 className="text-xl font-semibold text-white">Describe Your Song</h3>
-          </div>
-          <div className="flex items-center space-x-2">
-            {user?.plan === 'premium' && (
-              <span className="px-2 py-1 bg-gradient-to-r from-yellow-500 to-yellow-600 text-black text-xs font-bold rounded-full flex items-center">
-                <Crown className="w-3 h-3 mr-1" />
-                PREMIUM
-              </span>
-            )}
-            <span className="px-2 py-1 bg-gradient-to-r from-purple-500 to-purple-600 text-white text-xs font-bold rounded-full flex items-center">
-              <Sparkles className="w-3 h-3 mr-1" />
-              Random: {randomPromptCount}/100
-            </span>
-            <span className={`text-sm font-medium ${
-              isWordLimitExceeded() ? 'text-red-400' : 'text-cyan-400'
-            }`}>
-              {getWordCount(prompt)}/{getWordLimit()} words
-            </span>
-          </div>
-        </div>
-        
-        <div className="relative">
-          <textarea
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            placeholder={`Describe your perfect song... (${user?.plan === 'premium' ? '100' : '50'} words max)`}
-            className={`w-full h-32 bg-dark-700 border rounded-lg px-4 py-3 pr-16 text-white placeholder-dark-400 resize-none focus:outline-none focus:ring-2 focus:border-transparent transition-all ${
-              isWordLimitExceeded() 
-                ? 'border-red-500/50 focus:ring-red-500' 
-                : 'border-cyan-500/50 focus:ring-cyan-500'
-            }`}
-          />
-          <button
-            onClick={generateRandomPrompt}
-            disabled={randomPromptCount >= 100}
-            className={`absolute top-3 right-3 p-2 rounded-lg transition-all ${
-              randomPromptCount >= 100
-                ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
-                : 'bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white hover:scale-105'
-            }`}
-            title={`Generate random prompt (${randomPromptCount}/100)`}
-          >
-            <Sparkles className="w-4 h-4" />
-          </button>
-          {isWordLimitExceeded() && (
-            <div className="absolute -bottom-6 left-0 text-red-400 text-sm flex items-center">
-              <span className="mr-1">⚠️</span>
-              Word limit exceeded! {user?.plan === 'premium' ? 'Premium users' : 'Free users'} can use up to {getWordLimit()} words.
-              {user?.plan !== 'premium' && (
-                <button 
-                  onClick={() => {/* Navigate to subscription */}}
-                  className="ml-2 text-yellow-400 hover:text-yellow-300 underline"
-                >
-                  Upgrade to Premium
-                </button>
+            <div className="text-xs text-gray-400 mt-1">
+              {prompt.length > 0 && (
+                <span className={isWordLimitExceeded(prompt) ? 'text-red-400' : ''}>
+                  {prompt.trim().split(/\s+/).length} words
+                </span>
               )}
             </div>
-          )}
-        </div>
-      </motion.div>
+          </div>
 
-      {/* Settings */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.5 }}
-        className="bg-gradient-to-br from-dark-800 to-dark-850 rounded-xl p-6 border border-cyan-500/30 shadow-xl"
-      >
-        <div className="flex items-center space-x-3 mb-6">
-          <div className="w-10 h-10 bg-gradient-to-r from-cyan-500 to-cyan-600 rounded-lg flex items-center justify-center">
-            <Settings className="w-5 h-5 text-white" />
-          </div>
-          <h3 className="text-xl font-semibold text-white">Professional Track Settings</h3>
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
-          {/* AI Model */}
-          <div>
-            <label className="block text-sm font-medium text-cyan-400 mb-2 flex items-center">
-              <Brain className="w-4 h-4 mr-1" />
-              AI Model
-            </label>
-            <select
-              value={selectedAIModel}
-              onChange={(e) => setSelectedAIModel(e.target.value)}
-              className="w-full bg-dark-700 border border-cyan-500/50 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
-            >
-              {aiModels.map(model => (
-                <option key={model.id} value={model.id}>
-                  {model.name}
-                </option>
-              ))}
-            </select>
-            {/* Model Info */}
-            {(() => {
-              const currentModel = aiModels.find(m => m.id === selectedAIModel);
-              return currentModel ? (
-                <div className="mt-2 p-2 bg-dark-600/50 rounded text-xs">
-                  <div className="text-cyan-300 font-medium">{currentModel.description}</div>
-                  <div className="text-dark-300 mt-1">Specialty: {currentModel.specialty}</div>
-                  <div className="flex items-center space-x-2 mt-1">
-                    <span className={`px-1 py-0.5 rounded text-xs ${
-                      currentModel.quality === 'Ultra High' ? 'bg-purple-500/20 text-purple-300' :
-                      currentModel.quality === 'High' ? 'bg-green-500/20 text-green-300' :
-                      'bg-blue-500/20 text-blue-300'
-                    }`}>
-                      {currentModel.quality}
-                    </span>
-                    <span className={`px-1 py-0.5 rounded text-xs ${
-                      currentModel.speed === 'Fast' ? 'bg-green-500/20 text-green-300' :
-                      currentModel.speed === 'Medium' ? 'bg-yellow-500/20 text-yellow-300' :
-                      'bg-red-500/20 text-red-300'
-                    }`}>
-                      {currentModel.speed}
-                    </span>
-                  </div>
-                </div>
-              ) : null;
-            })()}
-          </div>
-          
-          {/* Genre */}
-          <div>
-            <label className="block text-sm font-medium text-cyan-400 mb-2">Genre</label>
-            <select
-              value={genre}
-              onChange={(e) => setGenre(e.target.value)}
-              className="w-full bg-dark-700 border border-cyan-500/50 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
-            >
-              <optgroup label="🎵 EDM & Electronic">
+          {/* Settings */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-medium mb-2 text-white">Genre</label>
+              <select
+                value={genre}
+                onChange={(e) => setGenre(e.target.value)}
+                className="w-full bg-dark-700 border border-dark-600 rounded-lg p-3 text-white focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                disabled={isLoading}
+              >
                 <option value="EDM">EDM</option>
-                <option value="House">House</option>
-                <option value="Techno">Techno</option>
-                <option value="Trance">Trance</option>
-                <option value="Dubstep">Dubstep</option>
-                <option value="Trap">Trap</option>
-                <option value="Big Room">Big Room</option>
-                <option value="Progressive">Progressive</option>
-                <option value="Electro">Electro</option>
-                <option value="Drum & Bass">Drum & Bass</option>
-              </optgroup>
-              <optgroup label="🎼 Traditional">
-                <option value="Hip Hop">Hip Hop</option>
-                <option value="Rock">Rock</option>
                 <option value="Pop">Pop</option>
-                <option value="Jazz">Jazz</option>
+                <option value="Rock">Rock</option>
+                <option value="Hip Hop">Hip Hop</option>
                 <option value="Classical">Classical</option>
-                <option value="Ambient">Ambient</option>
-                <option value="Lo-fi">Lo-fi</option>
-              </optgroup>
-            </select>
-          </div>
+                <option value="Jazz">Jazz</option>
+              </select>
+            </div>
 
-          {/* Mood */}
-          <div>
-            <label className="block text-sm font-medium text-cyan-400 mb-2">Mood</label>
-            <select
-              value={mood}
-              onChange={(e) => setMood(e.target.value)}
-              className="w-full bg-dark-700 border border-cyan-500/50 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
-            >
-              <optgroup label="⚡ High Energy">
+            <div>
+              <label className="block text-sm font-medium mb-2 text-white">Mood</label>
+              <select
+                value={mood}
+                onChange={(e) => setMood(e.target.value)}
+                className="w-full bg-dark-700 border border-dark-600 rounded-lg p-3 text-white focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                disabled={isLoading}
+              >
                 <option value="Energetic">Energetic</option>
-                <option value="Festive">Festive</option>
-                <option value="Uplifting">Uplifting</option>
-                <option value="Aggressive">Aggressive</option>
-                <option value="Epic">Epic</option>
-              </optgroup>
-              <optgroup label="😌 Chill & Atmospheric">
                 <option value="Chill">Chill</option>
-                <option value="Peaceful">Peaceful</option>
-                <option value="Mysterious">Mysterious</option>
+                <option value="Happy">Happy</option>
                 <option value="Melancholic">Melancholic</option>
-                <option value="Romantic">Romantic</option>
-              </optgroup>
-              <optgroup label="🌙 Dark & Intense">
-                <option value="Dark">Dark</option>
-                <option value="Intense">Intense</option>
-                <option value="Hypnotic">Hypnotic</option>
-                <option value="Euphoric">Euphoric</option>
-              </optgroup>
-            </select>
-          </div>
-
-          {/* Duration */}
-          <div>
-            <label className="block text-sm font-medium text-cyan-400 mb-2">Duration</label>
-            <select
-              value={duration}
-              onChange={(e) => {
-                const newDuration = Number(e.target.value);
-                console.log('Duration changed to:', newDuration, 'seconds (', newDuration/60, 'minutes)');
-                setDuration(newDuration);
-              }}
-              className="w-full bg-dark-700 border border-cyan-500/50 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
-            >
-              <option value={60}>1 minute</option>
-              <option value={120}>2 minutes</option>
-              <option value={180}>3 minutes</option>
-              <option value={240}>4 minutes</option>
-              <option value={300}>5 minutes</option>
-              <option value={360}>6 minutes</option>
-            </select>
-          </div>
-
-          {/* Target BPM */}
-          <div>
-            <label className="block text-sm font-medium text-cyan-400 mb-2">Target BPM</label>
-            <input
-              type="range"
-              min={100}
-              max={170}
-              step={1}
-              value={selectedBPM}
-              onChange={e => setSelectedBPM(Number(e.target.value))}
-              className="w-full slider"
-            />
-            <div className="text-center text-sm text-cyan-400 mt-1 font-bold">{selectedBPM} BPM</div>
-          </div>
-
-          {/* EDM Effects */}
-          <div>
-            <label className="block text-sm font-medium text-cyan-400 mb-2">EDM Effects</label>
-            <div className="flex flex-wrap gap-2">
-              {edmEffects.map(effect => (
-                <button
-                  key={effect}
-                  type="button"
-                  onClick={() => handleEffectToggle(effect)}
-                  className={`px-3 py-1 rounded-full border text-xs font-medium transition-all duration-200
-                    ${selectedEffects.includes(effect)
-                      ? 'bg-cyan-500/20 text-cyan-400 border-cyan-400'
-                      : 'bg-dark-700 text-dark-300 border-dark-600 hover:bg-dark-600 hover:text-cyan-400'}
-                  `}
-                >
-                  {effect}
-                </button>
-              ))}
+                <option value="Dramatic">Dramatic</option>
+              </select>
             </div>
           </div>
-        </div>
 
-        {/* EDM Features Preview */}
-        {['EDM', 'House', 'Techno', 'Trance', 'Dubstep', 'Trap', 'Big Room', 'Progressive', 'Electro', 'Drum & Bass'].includes(genre) && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.3 }}
-            className="mt-6 p-4 bg-gradient-to-r from-cyan-500/10 to-blue-500/10 rounded-lg border border-cyan-500/30"
-          >
-            <div className="flex items-center space-x-2 mb-3">
-              <Zap className="w-4 h-4 text-cyan-400" />
-              <span className="text-sm font-medium text-cyan-400">Professional EDM Features:</span>
-            </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
-              <div className="flex items-center space-x-1">
-                <Volume2 className="w-3 h-3 text-cyan-400" />
-                <span className="text-dark-300">Heavy Bass Drops</span>
+          {/* Progress Bar */}
+          {isLoading && (
+            <div className="mt-6">
+              <div className="flex justify-between text-sm mb-1 text-white">
+                <span>Generating your track...</span>
+                <span>{progress}%</span>
               </div>
-              <div className="flex items-center space-x-1">
-                <Volume2 className="w-3 h-3 text-cyan-400" />
-                <span className="text-dark-300">Beat Builds</span>
-              </div>
-              <div className="flex items-center space-x-1">
-                <Volume2 className="w-3 h-3 text-cyan-400" />
-                <span className="text-dark-300">Synth Layers</span>
-              </div>
-              <div className="flex items-center space-x-1">
-                <Volume2 className="w-3 h-3 text-cyan-400" />
-                <span className="text-dark-300">DJ Effects</span>
+              <div className="w-full bg-dark-700 rounded-full h-2.5">
+                <div
+                  className="bg-gradient-to-r from-cyan-500 to-blue-500 h-2.5 rounded-full transition-all duration-300"
+                  style={{ width: `${progress}%` }}
+                ></div>
               </div>
             </div>
-          </motion.div>
-        )}
-      </motion.div>
-
-      {/* Voice Mixing Section */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.55 }}
-        className="bg-gradient-to-br from-dark-800 to-dark-850 rounded-xl p-6 border border-purple-500/30 shadow-xl"
-      >
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-pink-600 rounded-lg flex items-center justify-center">
-              <Mic className="w-5 h-5 text-white" />
-            </div>
-            <h3 className="text-xl font-semibold text-white">DJ Voice Mixing</h3>
-          </div>
-          
-          <div className="flex items-center space-x-4">
-            {/* Mixing Mode Selector */}
-            <div className="flex items-center space-x-2 bg-dark-700 rounded-lg p-1">
-              <button
-                onClick={() => setMixingMode('traditional')}
-                className={`px-3 py-1 rounded-md text-sm font-medium transition-all ${
-                  mixingMode === 'traditional'
-                    ? 'bg-purple-500 text-white'
-                    : 'text-gray-400 hover:text-white'
-                }`}
-              >
-                Traditional
-              </button>
-              <button
-                onClick={() => setMixingMode('realtime')}
-                className={`px-3 py-1 rounded-md text-sm font-medium transition-all flex items-center gap-1 ${
-                  mixingMode === 'realtime'
-                    ? 'bg-gradient-to-r from-red-500 to-pink-500 text-white'
-                    : 'text-gray-400 hover:text-white'
-                }`}
-              >
-                <Radio className="w-3 h-3" />
-                Live Mix
-              </button>
-            </div>
-            
-            {/* Traditional Mode Toggle */}
-            {mixingMode === 'traditional' && (
-              <div className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  id="enableVoiceMix"
-                  checked={enableVoiceMix}
-                  onChange={(e) => setEnableVoiceMix(e.target.checked)}
-                  className="w-4 h-4 text-purple-600 bg-dark-700 border-purple-500 rounded focus:ring-purple-500"
-                />
-                <label htmlFor="enableVoiceMix" className="text-sm text-purple-400 cursor-pointer">
-                  Enable Voice Mix
-                </label>
-              </div>
-            )}
-          </div>
-        </div>
-        
-        <AnimatePresence>
-          {/* Real-Time Mixer */}
-          {mixingMode === 'realtime' && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.3 }}
-            >
-              <RealTimeMixer 
-                backgroundMusicUrl={generatedTrack?.outputUrl || '/edm/myedm1.mp3'}
-                onMixComplete={(url) => {
-                  setRealtimeMixUrl(url);
-                  toast.success('🎵 Real-time mix completed!');
-                }}
-              />
-            </motion.div>
           )}
-          
-          {/* Traditional Voice Mixing */}
-          {mixingMode === 'traditional' && enableVoiceMix && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.3 }}
-              className="space-y-4"
-            >
-              {/* Voice Prompt */}
+
+          {/* Info Box */}
+          <div className="bg-dark-700/50 border border-dark-600 rounded-lg p-4 text-sm text-gray-300">
+            <div className="flex items-start space-x-3">
+              <svg className="w-5 h-5 mt-0.5 text-cyan-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
               <div>
-                <label className="block text-sm font-medium text-purple-400 mb-2">
-                  Voice Text (What should the voice say?)
-                </label>
-                <textarea
-                  value={voicePrompt}
-                  onChange={(e) => setVoicePrompt(e.target.value)}
-                  placeholder="Enter what you want the voice to say... (e.g., 'Welcome to the party! Let's get this dance floor moving!')"
-                  className="w-full h-20 bg-dark-700 border border-purple-500/50 rounded-lg px-4 py-3 text-white placeholder-dark-400 resize-none focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
-                />
+                <p className="font-medium text-white mb-1">How it works</p>
+                <p className="text-sm">Describe the song you want to create, select a genre and mood, then click "Generate Track". The AI will create a unique song based on your description.</p>
               </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Voice Style */}
-                <div>
-                  <label className="block text-sm font-medium text-purple-400 mb-2">
-                    Voice Style
-                  </label>
-                  <select
-                    value={voiceStyle}
-                    onChange={(e) => setVoiceStyle(e.target.value)}
-                    className="w-full bg-dark-700 border border-purple-500/50 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-                  >
-                    {voiceStyles.map(style => (
-                      <option key={style.value} value={style.value}>
-                        {style.label}
-                      </option>
-                    ))}
-                  </select>
-                  <p className="text-xs text-dark-400 mt-1">
-                    {voiceStyles.find(s => s.value === voiceStyle)?.description}
-                  </p>
-                </div>
-                
-                {/* Voice Volume */}
-                <div>
-                  <label className="block text-sm font-medium text-purple-400 mb-2">
-                    Voice Volume
-                  </label>
-                  <input
-                    type="range"
-                    min={0.1}
-                    max={1.0}
-                    step={0.1}
-                    value={voiceVolume}
-                    onChange={(e) => setVoiceVolume(Number(e.target.value))}
-                    className="w-full slider"
-                  />
-                  <div className="text-center text-sm mt-1">
-                    <span className={voiceVolume < 0.3 ? 'text-yellow-400 font-bold' : 'text-purple-400 font-bold'}>
-                      {Math.round(voiceVolume * 100)}%
-                    </span>
-                    {voiceVolume < 0.3 && (
-                       <div className="text-yellow-400 text-xs mt-1">
-                         <div className="flex items-center justify-center space-x-1 mb-1">
-                           <span>⚠️</span>
-                           <span>Volume rendah, voice mungkin tidak terdengar jelas</span>
-                         </div>
-                         <button
-                           onClick={() => setVoiceVolume(0.5)}
-                           className="text-xs bg-yellow-600 hover:bg-yellow-700 text-white px-2 py-1 rounded transition-colors"
-                         >
-                           Set to 50% (Recommended)
-                         </button>
-                       </div>
-                     )}
-                  </div>
-                </div>
-              </div>
-              
-              {/* Enhanced Voice Preview with Timeline */}
-              <div className="p-4 bg-gradient-to-r from-purple-500/10 to-pink-500/10 rounded-lg border border-purple-500/30">
-                <div className="flex items-center space-x-2 mb-3">
-                  <Volume2 className="w-4 h-4 text-purple-400" />
-                  <span className="text-sm font-medium text-purple-400">Voice Mix Preview:</span>
-                  <button
-                    onClick={async () => {
-                      if (voicePrompt.trim()) {
-                        try {
-                          console.log('🎤 Testing voice with settings:', { voicePrompt, voiceStyle, voiceVolume });
-                          const voiceBlob = await generateVoiceAudio(voicePrompt, voiceStyle);
-                          console.log('✅ Voice blob generated:', voiceBlob.size, 'bytes');
-                          const audioUrl = URL.createObjectURL(voiceBlob);
-                          const audio = new Audio(audioUrl);
-                          audio.volume = voiceVolume;
-                          console.log('🔊 Playing voice test at volume:', voiceVolume);
-                          await audio.play();
-                        } catch (error) {
-                          console.error('❌ Voice preview error:', error);
-                          toast.error('Voice test failed: ' + error.message);
-                        }
-                      }
-                    }}
-                    disabled={!voicePrompt.trim()}
-                    className="px-2 py-1 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white text-xs rounded transition-colors"
-                  >
-                    🎤 Test Voice
-                  </button>
-                </div>
-                
-                <div className="space-y-2">
-                  <div className="text-xs text-dark-300">
-                    Style: <span className="text-purple-400 font-semibold">{voiceStyles.find(s => s.value === voiceStyle)?.label}</span> • 
-                    Volume: <span className="text-purple-400 font-semibold">{Math.round(voiceVolume * 100)}%</span>
-                  </div>
-                  
-                  {voicePrompt && (
-                    <div className="text-xs text-dark-300">
-                      Text: <span className="text-purple-400 italic font-medium">"{voicePrompt.substring(0, 80)}{voicePrompt.length > 80 ? '...' : ''}"</span>
-                    </div>
-                  )}
-                  
-                  {/* Voice Distribution Timeline */}
-                  <div className="mt-3">
-                    <div className="text-xs text-purple-400 mb-1 font-medium">Voice will appear throughout the song:</div>
-                    <div className="flex items-center space-x-1">
-                      <div className="flex-1 h-2 bg-dark-600 rounded-full overflow-hidden">
-                        <div className="h-full bg-gradient-to-r from-cyan-500 to-purple-500 rounded-full" style={{width: '100%'}}></div>
-                      </div>
-                    </div>
-                    <div className="flex justify-between text-xs text-dark-400 mt-1">
-                      <span>🎵 Start</span>
-                       <span>🎤 Voice integrated harmoniously</span>
-                       <span>🎵 End</span>
-                    </div>
-                  </div>
-                  
-                  {/* Enhanced Features Info */}
-                  <div className="mt-3 p-2 bg-dark-700/50 rounded border border-purple-500/20">
-                    <div className="text-xs text-purple-300 font-medium mb-1">✨ Enhanced Features:</div>
-                    <div className="text-xs text-dark-300 space-y-1">
-                      <p className="text-cyan-400 font-medium">🔇 Voice will be generated silently (not heard directly)</p>
-                       <p className="text-yellow-400">🎛️ Voice will be mixed with music after generation is complete</p>
-                       <p className="text-green-400 font-medium">⚡ Fast Mode: Generation in ~10 seconds</p>
-                       <div>• 🎼 Harmonic integration with melody</div>
-                       <div>• 🎛️ Tone-changing without blur</div>
-                       <div>• ⚡ Single voice placement for speed</div>
-                       <div>• 🎚️ Adaptive volume with music</div>
-                       <div>• 🔊 Voice enhanced with music ducking</div>
-                       <div>• 🚀 Minimal processing for optimal speed</div>
-                       <div>• 🎧 Balanced audio quality</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </motion.div>
+            </div>
+          </div>
 
-      {/* Generate Button */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.6 }}
-        className="flex justify-center"
-      >
-        <motion.button
-          whileHover={{ scale: 1.02, boxShadow: "0 20px 40px rgba(6, 182, 212, 0.3)" }}
-          whileTap={{ scale: 0.98 }}
-          onClick={handleGenerateSong}
-          disabled={!prompt.trim() || !user || user.credits <= 0 || isLoading}
-          className="relative w-full max-w-md bg-gradient-to-r from-cyan-500 to-cyan-600 text-white font-bold py-4 px-8 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed overflow-hidden"
-        >
-          <AnimatePresence mode="wait">
+          {/* Generate Button */}
+          <button
+            onClick={handleGenerateTrack}
+            disabled={isLoading || !prompt.trim()}
+            className={`w-full py-4 px-6 rounded-xl font-semibold text-white transition-all
+              bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 
+              transform hover:scale-105 flex items-center justify-center gap-2
+              ${isLoading || !prompt.trim() ? 'opacity-50 cursor-not-allowed' : ''}
+              ${!isLoading ? 'hover:scale-105' : ''}`}
+          >
             {isLoading ? (
-              <motion.div
-                key="loading"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="flex flex-col items-center space-y-2"
-              >
-                <div className="flex items-center space-x-2">
-                  <Loader className="w-5 h-5 animate-spin" />
-                  <span>Creating Professional EDM Track...</span>
-                </div>
-                <div className="w-full bg-cyan-800 rounded-full h-2">
-                  <motion.div
-                    initial={{ width: 0 }}
-                    animate={{ width: `${progress}%` }}
-                    className="bg-white h-2 rounded-full transition-all duration-300"
-                  />
-                </div>
-                <span className="text-sm opacity-75">{Math.round(progress)}% Complete</span>
-              </motion.div>
+              <>
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                <span>Generating...</span>
+              </>
             ) : (
-              <motion.div
-                key="generate"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="flex items-center justify-center space-x-2"
-              >
+              <>
                 <Sparkles className="w-5 h-5" />
-                <span>Generate Professional EDM Track</span>
-              </motion.div>
+                <span>{prompt.trim() ? 'Generate Track' : 'Enter a description to begin'}</span>
+              </>
             )}
-          </AnimatePresence>
-          
-          {/* Animated background */}
-          <motion.div
-            animate={{
-              x: ['-100%', '100%'],
-            }}
-            transition={{
-              duration: 2,
-              repeat: Infinity,
-              ease: "linear"
-            }}
-            className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent"
-          />
-        </motion.button>
-      </motion.div>
-
-      {/* Generated Track Preview */}
-      <AnimatePresence>
-        {generatedTrack && (
-          <motion.div
-            initial={{ opacity: 0, y: 20, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -20, scale: 0.95 }}
-            className="bg-gradient-to-br from-dark-800 to-dark-850 rounded-xl p-6 border border-cyan-500/50 shadow-xl"
-          >
-            <div className="flex items-center space-x-3 mb-4">
-              <div className="w-10 h-10 bg-gradient-to-r from-cyan-500 to-cyan-600 rounded-lg flex items-center justify-center">
-                <Music className="w-5 h-5 text-white" />
-              </div>
-              <h3 className="text-xl font-semibold text-white">🎉 Your Professional Track is Ready!</h3>
-            </div>
-            
-            <div className="flex items-center mb-2">
-              <span className="px-3 py-1 bg-cyan-500/20 text-cyan-400 text-xs rounded-full mr-2 font-bold">Simulated AI Output</span>
-              <span className="text-xs text-dark-400">(Demo only)</span>
-            </div>
-            <div className="flex flex-wrap gap-2 mb-2">
-              <span className="px-2 py-1 bg-cyan-500/10 text-cyan-400 text-xs rounded-full font-bold">BPM: {generatedTrack.bpm}</span>
-              {generatedTrack.effects && generatedTrack.effects.map((effect: string) => (
-                <span key={effect} className="px-2 py-1 bg-cyan-500/10 text-cyan-400 text-xs rounded-full font-bold">{effect}</span>
-              ))}
-            </div>
-            
-            <AudioPlayer
-              src={generatedTrack.outputUrl}
-              title={generatedTrack.name}
-              className="mb-4"
-              maxDuration={duration}
-            />
-            
-            <div className="flex items-center justify-between">
-              <div className="text-sm text-dark-300 space-y-1">
-                <p><span className="text-cyan-400 font-medium">Genre:</span> {generatedTrack.genre}</p>
-                <p><span className="text-cyan-400 font-medium">Mood:</span> {generatedTrack.style}</p>
-                <p><span className="text-cyan-400 font-medium">BPM:</span> {generatedTrack.bpm}</p>
-                <p><span className="text-cyan-400 font-medium">Duration:</span> {Math.floor(generatedTrack.duration / 60)}:{(generatedTrack.duration % 60).toString().padStart(2, '0')}</p>
-              </div>
-              
-              <div className="flex items-center space-x-2">
-                <motion.button
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.9 }}
-                  className="p-2 text-dark-400 hover:text-red-400 transition-colors"
-                  onClick={() => toast.success('Added to favorites!')}
-                >
-                  <Heart className="w-5 h-5" />
-                </motion.button>
-                
-                <motion.button
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.9 }}
-                  className="p-2 text-dark-400 hover:text-cyan-400 transition-colors"
-                  onClick={() => toast.success('Share link copied to clipboard!')}
-                >
-                  <Share2 className="w-5 h-5" />
-                </motion.button>
-                
-                <motion.button
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.9 }}
-                  className="p-2 text-dark-400 hover:text-cyan-400 transition-colors"
-                  onClick={() => toast.success('Download started!')}
-                >
-                  <Download className="w-5 h-5" />
-                </motion.button>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Real-Time Mix Result */}
-      <AnimatePresence>
-        {realtimeMixUrl && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="bg-gradient-to-br from-cyan-900/20 to-blue-900/20 rounded-xl p-6 border border-cyan-500/30 shadow-xl"
-          >
-            <div className="flex items-center gap-3 mb-4">
-              <div className="p-2 bg-gradient-to-r from-cyan-500 to-blue-500 rounded-lg">
-                <Radio className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <h3 className="text-xl font-bold text-white">🎵 Live Mix Complete!</h3>
-                <p className="text-gray-400 text-sm">Your real-time voice mix is ready</p>
-              </div>
-            </div>
-            
-            <div className="flex items-center mb-2">
-              <span className="px-3 py-1 bg-cyan-500/20 text-cyan-400 text-xs rounded-full mr-2 font-bold">Real-Time Mixed</span>
-              <span className="text-xs text-gray-400">Live recorded with voice</span>
-            </div>
-            
-            <AudioPlayer
-              src={realtimeMixUrl}
-              title="Live Voice Mix"
-              className="mb-4"
-            />
-            
-            <div className="flex items-center justify-between">
-              <div className="text-sm text-gray-300 space-y-1">
-                <p><span className="text-cyan-400 font-medium">Type:</span> Real-time Voice Mix</p>
-                <p><span className="text-cyan-400 font-medium">Format:</span> WebM Audio</p>
-                <p><span className="text-cyan-400 font-medium">Quality:</span> 44.1kHz</p>
-              </div>
-              
-              <div className="flex items-center space-x-2">
-                <motion.button
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.9 }}
-                  className="p-2 text-gray-400 hover:text-cyan-400 transition-colors"
-                  onClick={() => toast.success('Added to favorites!')}
-                >
-                  <Heart className="w-5 h-5" />
-                </motion.button>
-                
-                <motion.button
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.9 }}
-                  className="p-2 text-gray-400 hover:text-cyan-400 transition-colors"
-                  onClick={() => toast.success('Share link copied to clipboard!')}
-                >
-                  <Share2 className="w-5 h-5" />
-                </motion.button>
-                
-                <motion.button
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.9 }}
-                  className="p-2 text-gray-400 hover:text-cyan-400 transition-colors"
-                  onClick={() => {
-                    const a = document.createElement('a');
-                    a.href = realtimeMixUrl;
-                    a.download = `live-mix-${Date.now()}.webm`;
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                    toast.success('Download started!');
-                  }}
-                >
-                  <Download className="w-5 h-5" />
-                </motion.button>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Premium Upgrade Card */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.7 }}
-        className="relative bg-gradient-to-r from-cyan-600 via-cyan-700 to-blue-600 rounded-xl p-6 text-white overflow-hidden"
-      >
-        <motion.div
-          animate={{
-            backgroundPosition: ['0% 50%', '100% 50%', '0% 50%'],
-          }}
-          transition={{
-            duration: 5,
-            repeat: Infinity,
-            ease: "linear"
-          }}
-          className="absolute inset-0 bg-gradient-to-r from-cyan-600 via-blue-500 to-cyan-600 bg-[length:200%_100%]"
-        />
-        
-        <div className="relative z-10 flex items-center justify-between">
-          <div className="flex-1">
-            <div className="flex items-center space-x-2 mb-2">
-              <Crown className="w-6 h-6 text-yellow-300" />
-              <h3 className="text-2xl font-bold">Unlock Professional AI Features!</h3>
-            </div>
-            <p className="text-cyan-100 mb-4 text-lg">
-              Get unlimited text-to-song generation, advanced AI models, and exclusive sound libraries.
-            </p>
-            <div className="flex items-center space-x-4 mb-4">
-              <div className="flex items-center space-x-1">
-                <Zap className="w-4 h-4 text-yellow-300" />
-                <span className="text-sm">Unlimited Credits</span>
-              </div>
-              <div className="flex items-center space-x-1">
-                <Sparkles className="w-4 h-4 text-yellow-300" />
-                <span className="text-sm">Pro AI Models</span>
-              </div>
-              <div className="flex items-center space-x-1">
-                <Download className="w-4 h-4 text-yellow-300" />
-                <span className="text-sm">HD Downloads</span>
-              </div>
-            </div>
-            <motion.button
-              whileHover={{ scale: 1.05, boxShadow: "0 10px 30px rgba(255, 255, 255, 0.3)" }}
-              whileTap={{ scale: 0.95 }}
-              className="bg-white text-cyan-600 font-bold py-3 px-8 rounded-lg hover:bg-cyan-50 transition-all shadow-lg"
-              onClick={() => toast.success('Redirecting to premium plans...')}
-            >
-              Upgrade to Pro - $19.99/month
-            </motion.button>
-          </div>
-          
-          <div className="hidden md:block">
-            <motion.div
-              animate={{ rotate: [0, 10, -10, 0] }}
-              transition={{ duration: 4, repeat: Infinity }}
-              className="w-32 h-32 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm"
-            >
-              <Crown className="w-16 h-16 text-yellow-300" />
-            </motion.div>
-          </div>
+          </button>
         </div>
-      </motion.div>
+      </div>
     </div>
   );
 };
