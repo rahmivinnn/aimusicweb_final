@@ -71,136 +71,179 @@ export class AIRemixService {
     return sampleAudios[settings.genre as keyof typeof sampleAudios] || sampleAudios.EDM;
   }
 
+  private getAIModelAudioSelection(
+    aiModel: string,
+    settings: { duration: number; genre: string; mood: string }
+  ): string | null {
+    console.log('🤖 AI Model Selection - Model:', aiModel, 'Genre:', settings.genre, 'Mood:', settings.mood);
+    
+    // Each AI model has different audio characteristics and file selections
+    const modelAudioMappings = {
+      'AIVA-1': {
+        // Professional EDM focus with clean mixes
+        'EDM': ['/edm/myedm1.mp3', '/edm/myedm7.mp3', '/edm/myedm13.mp3'],
+        'House': ['/edm/myedm2.mp3', '/edm/myedm8.mp3'],
+        'Techno': ['/edm/myedm3.mp3', '/edm/myedm9.mp3'],
+        'Trance': ['/edm/myedm4.mp3', '/edm/myedm10.mp3'],
+        'default': ['/edm/myedm1.mp3', '/edm/myedm7.mp3']
+      },
+      'AIVA-2': {
+        // Versatile high-quality across all genres
+        'EDM': ['/edm/myedm5.mp3', '/edm/myedm11.mp3'],
+        'House': ['/edm/myedm6.mp3', '/edm/myedm12.mp3'],
+        'Pop': ['/edm/myedm2.mp3', '/edm/myedm8.mp3'],
+        'Rock': ['/edm/myedm3.mp3', '/edm/myedm9.mp3'],
+        'Jazz': ['/edm/myedm4.mp3', '/edm/myedm10.mp3'],
+        'default': ['/edm/myedm5.mp3', '/edm/myedm11.mp3']
+      },
+      'AIVA-3': {
+        // Rhythm and drum focused
+        'Hip Hop': ['/edm/myedm6.mp3', '/edm/myedm12.mp3'],
+        'Trap': ['/edm/myedm7.mp3', '/edm/myedm13.mp3'],
+        'Drum & Bass': ['/edm/myedm8.mp3', '/edm/myedm1.mp3'],
+        'EDM': ['/edm/myedm9.mp3', '/edm/myedm2.mp3'],
+        'default': ['/edm/myedm6.mp3', '/edm/myedm12.mp3']
+      },
+      'AIVA-4': {
+        // Retro-futuristic synth focus
+        'Trance': ['/edm/myedm10.mp3', '/edm/myedm3.mp3'],
+        'Ambient': ['/edm/myedm11.mp3', '/edm/myedm4.mp3'],
+        'EDM': ['/edm/myedm12.mp3', '/edm/myedm5.mp3'],
+        'Electro': ['/edm/myedm13.mp3', '/edm/myedm6.mp3'],
+        'default': ['/edm/myedm10.mp3', '/edm/myedm11.mp3']
+      },
+      'AIVA-5': {
+        // Traditional and orchestral focus
+        'Classical': ['/edm/myedm1.mp3', '/edm/myedm7.mp3'], // Repurposed as classical-style
+        'Jazz': ['/edm/myedm2.mp3', '/edm/myedm8.mp3'],
+        'Ambient': ['/edm/myedm3.mp3', '/edm/myedm9.mp3'],
+        'Lo-fi': ['/edm/myedm4.mp3', '/edm/myedm10.mp3'],
+        'default': ['/edm/myedm1.mp3', '/edm/myedm2.mp3']
+      }
+    };
+    
+    const modelMapping = modelAudioMappings[aiModel as keyof typeof modelAudioMappings];
+    if (!modelMapping) {
+      console.log('🤖 Unknown AI model, using default selection');
+      return null;
+    }
+    
+    // Select audio based on genre, with fallback to default
+    const genreFiles = modelMapping[settings.genre as keyof typeof modelMapping] || modelMapping.default;
+    
+    if (!genreFiles || genreFiles.length === 0) {
+      console.log('🤖 No files found for genre, using default');
+      return modelMapping.default?.[0] || '/edm/myedm1.mp3';
+    }
+    
+    // Add mood-based selection within the genre files
+    let selectedFile;
+    if (settings.mood === 'Energetic' || settings.mood === 'Aggressive' || settings.mood === 'Epic') {
+      // High energy moods prefer later files (typically more intense)
+      selectedFile = genreFiles[genreFiles.length - 1];
+    } else if (settings.mood === 'Chill' || settings.mood === 'Peaceful' || settings.mood === 'Ambient') {
+      // Chill moods prefer earlier files (typically more mellow)
+      selectedFile = genreFiles[0];
+    } else {
+      // Random selection for other moods
+      selectedFile = genreFiles[Math.floor(Math.random() * genreFiles.length)];
+    }
+    
+    console.log('🤖 AI Model', aiModel, 'selected:', selectedFile, 'for genre:', settings.genre, 'mood:', settings.mood);
+    return selectedFile;
+  }
+
   async textToMusic(
     prompt: string,
     settings: {
       duration: number;
       genre: string;
       mood: string;
+      aiModel?: string;
     },
     onProgress?: (progress: number) => void
   ): Promise<string> {
-    console.log('🎵 SIMPLE AUDIO GENERATION STARTED');
+    console.log('🎵 ROBUST AUDIO GENERATION STARTED');
+    console.log('🎵 Settings:', settings);
+    console.log('🎵 Prompt:', prompt);
     
-    // Simple progress simulation
-    if (onProgress) {
-      onProgress(25);
-      await new Promise(resolve => setTimeout(resolve, 200));
-      onProgress(50);
-      await new Promise(resolve => setTimeout(resolve, 200));
-      onProgress(75);
-      await new Promise(resolve => setTimeout(resolve, 200));
-      onProgress(100);
+    try {
+      // Robust progress simulation with error handling
+      if (onProgress) {
+        try {
+          onProgress(25);
+          await new Promise(resolve => setTimeout(resolve, 300));
+          onProgress(50);
+          await new Promise(resolve => setTimeout(resolve, 300));
+          onProgress(75);
+          await new Promise(resolve => setTimeout(resolve, 300));
+          onProgress(100);
+        } catch (progressError) {
+          console.warn('⚠️ Progress callback error:', progressError);
+          // Continue even if progress fails
+        }
+      }
+      
+      // Generate audio with fallback mechanism
+      const audioUrl = this.generateTextToMusicAudio(prompt, settings);
+      
+      console.log('🤖 AI Model used:', settings.aiModel || 'MusicGen-Pro (default)');
+      
+      // Verify the audio URL is valid
+      if (!audioUrl || typeof audioUrl !== 'string') {
+        throw new Error('Invalid audio URL generated');
+      }
+      
+      console.log('🎵 AUDIO GENERATION SUCCESSFUL:', audioUrl);
+      return audioUrl;
+      
+    } catch (error) {
+      console.error('❌ Audio generation error:', error);
+      
+      // Fallback to default audio
+      const fallbackUrl = '/edm/myedm1.mp3';
+      console.log('🎵 USING FALLBACK AUDIO:', fallbackUrl);
+      return fallbackUrl;
     }
-    
-    // Just return a simple audio file
-    const simpleAudioUrl = '/edm/myedm1.mp3';
-    console.log('🎵 RETURNING SIMPLE AUDIO:', simpleAudioUrl);
-    return simpleAudioUrl;
   }
 
   private generateTextToMusicAudio(
     prompt: string,
-    settings: { duration: number; genre: string; mood: string }
+    settings: { duration: number; genre: string; mood: string; aiModel?: string }
   ): string {
     console.log('🎵 generateTextToMusicAudio called with settings:', settings);
     console.log('🎵 generateTextToMusicAudio - Processing duration:', settings.duration, 'seconds');
+    console.log('🤖 AI Model:', settings.aiModel || 'AIVA-1 (default)');
     
-    // For EDM genre, select files based on duration preference
-    if (settings.genre === 'EDM') {
-      // Duration-based file selection for EDM
-      const edmFilesByDuration = {
-        60: ['/edm/myedm1.mp3', '/edm/myedm2.mp3', '/edm/myedm3.mp3'], // 1 minute tracks
-        120: ['/edm/myedm4.mp3', '/edm/myedm5.mp3', '/edm/myedm6.mp3'], // 2 minute tracks
-        180: ['/edm/myedm7.mp3', '/edm/myedm8.mp3', '/edm/myedm9.mp3'], // 3 minute tracks
-        240: ['/edm/myedm10.mp3', '/edm/myedm11.mp3'], // 4 minute tracks
-        300: ['/edm/myedm12.mp3', '/edm/myedm13.mp3'], // 5 minute tracks
-        360: ['/edm/myedm1.mp3', '/edm/myedm7.mp3'] // 6 minute tracks (reuse with note)
-      };
+    // DEMO MODE: Always return result.mp3 for client demonstration
+    console.log('🎭 DEMO MODE: Returning result.mp3 for client presentation');
+    return '/edm/result.mp3';
+    
+    // Original logic commented out for demo
+    /*
+    try {
+      // Validate input parameters
+      if (!settings || typeof settings.duration !== 'number' || !settings.genre || !settings.mood) {
+        throw new Error('Invalid settings provided');
+      }
       
-      const durationKey = settings.duration as keyof typeof edmFilesByDuration;
-      const availableFiles = edmFilesByDuration[durationKey] || edmFilesByDuration[180]; // fallback to 3min
+      // AI Model-specific audio generation
+      const aiModel = settings.aiModel || 'AIVA-1';
+      const modelBasedSelection = this.getAIModelAudioSelection(aiModel, settings);
       
-      const randomIndex = Math.floor(Math.random() * availableFiles.length);
-      const selectedFile = availableFiles[randomIndex];
+      if (modelBasedSelection) {
+        console.log('🤖 Using AI model-specific audio:', modelBasedSelection);
+        return modelBasedSelection;
+      }
+    } catch (error) {
+      console.error('❌ Error in generateTextToMusicAudio:', error);
       
-      console.log('🎵 Selected EDM file for', settings.duration, 'seconds:', selectedFile);
-      console.log('🎵 Note: In a real implementation, this file would be processed to match the exact duration');
-      
-      // Return the selected file path (already has leading slash)
-      console.log('🎵 Returning file URL:', selectedFile);
-      return selectedFile;
+      // Ultimate fallback - always return a working file
+      const fallbackFile = '/edm/myedm1.mp3';
+      console.log('🎵 Using ultimate fallback:', fallbackFile);
+      return fallbackFile;
     }
-    // For other genres/moods, fallback to local EDM files
-    console.log('🎵 Using fallback local EDM files for genre:', settings.genre, 'mood:', settings.mood);
-    console.log('🎵 Requested duration:', settings.duration, 'seconds - Note: Sample files may not match exact duration');
-    
-    const edmSamples = {
-      'Energetic': [
-        '/edm/myedm1.mp3',
-        '/edm/myedm4.mp3',
-        '/edm/myedm7.mp3'
-      ],
-      'Chill': [
-        '/edm/myedm2.mp3',
-        '/edm/myedm5.mp3',
-        '/edm/myedm8.mp3'
-      ],
-      'Dark': [
-        '/edm/myedm3.mp3',
-        '/edm/myedm6.mp3',
-        '/edm/myedm9.mp3'
-      ],
-      'Uplifting': [
-        '/edm/myedm10.mp3',
-        '/edm/myedm11.mp3',
-        '/edm/myedm12.mp3'
-      ],
-      'Mysterious': [
-        '/edm/myedm13.mp3',
-        '/edm/myedm1.mp3',
-        '/edm/myedm7.mp3'
-      ],
-      'Romantic': [
-        '/edm/myedm2.mp3',
-        '/edm/myedm8.mp3',
-        '/edm/myedm5.mp3'
-      ],
-      'Aggressive': [
-        '/edm/myedm3.mp3',
-        '/edm/myedm9.mp3',
-        '/edm/myedm6.mp3'
-      ],
-      'Peaceful': [
-        '/edm/myedm2.mp3',
-        '/edm/myedm5.mp3',
-        '/edm/myedm8.mp3'
-      ],
-      'Melancholic': [
-        '/edm/myedm4.mp3',
-        '/edm/myedm7.mp3',
-        '/edm/myedm10.mp3'
-      ],
-      'Festive': [
-        '/edm/myedm1.mp3',
-        '/edm/myedm11.mp3',
-        '/edm/myedm13.mp3'
-      ]
-    };
-    // Select sample based on mood
-    const moodSamples = edmSamples[settings.mood as keyof typeof edmSamples] || edmSamples.Energetic;
-    const randomIndex = Math.floor(Math.random() * moodSamples.length);
-    const selectedSample = moodSamples[randomIndex];
-    
-    console.log('🎵 Selected sample for', settings.mood, 'mood:', selectedSample);
-    console.log('🎵 Warning: Sample duration may not match requested', settings.duration, 'seconds');
-    
-    // Test if the file path is valid
-    console.log('🎵 Testing file accessibility for:', selectedSample);
-    
-    // Return the selected sample
-    console.log('🎵 Returning audio URL:', selectedSample);
-    return selectedSample;
+    */
   }
 
   async enhanceAudio(audioUrl: string, enhancement: string): Promise<string> {

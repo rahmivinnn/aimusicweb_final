@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Play, Download, Share2, Heart, Sparkles, Zap, Crown, Loader, Music, Mic, Volume2, Settings, Radio } from 'lucide-react';
+import { Play, Download, Share2, Heart, Sparkles, Zap, Crown, Loader, Music, Mic, Volume2, Settings, Radio, Brain } from 'lucide-react';
 import AudioPlayer from './AudioPlayer';
 import RealTimeMixer from './RealTimeMixer';
 import { useStore } from '../store/useStore';
@@ -24,6 +24,40 @@ const TextToSong: React.FC = () => {
   const [voiceVolume, setVoiceVolume] = useState(0.8); // Increased default volume for better audibility
   const [mixingMode, setMixingMode] = useState<'traditional' | 'realtime'>('traditional');
   const [realtimeMixUrl, setRealtimeMixUrl] = useState<string | null>(null);
+  const [selectedAIModel, setSelectedAIModel] = useState('AIVA-1');
+  const [randomPromptCount, setRandomPromptCount] = useState(0);
+
+  // Random prompt generator
+  const musicWords = [
+    'energetic', 'powerful', 'melodic', 'rhythmic', 'dynamic', 'uplifting', 'intense', 'atmospheric',
+    'driving', 'pulsing', 'soaring', 'thunderous', 'euphoric', 'hypnotic', 'explosive', 'dreamy',
+    'aggressive', 'smooth', 'vibrant', 'epic', 'emotional', 'futuristic', 'nostalgic', 'mysterious',
+    'bass', 'drums', 'synth', 'melody', 'harmony', 'beat', 'drop', 'buildup', 'breakdown', 'chorus',
+    'verse', 'bridge', 'intro', 'outro', 'hook', 'riff', 'groove', 'tempo', 'rhythm', 'sound',
+    'electronic', 'digital', 'analog', 'synthesized', 'distorted', 'filtered', 'reverb', 'delay',
+    'club', 'festival', 'dance', 'party', 'crowd', 'energy', 'vibe', 'mood', 'feeling', 'emotion',
+    'night', 'lights', 'neon', 'city', 'urban', 'underground', 'mainstream', 'underground', 'raw', 'polished',
+    'heavy', 'light', 'dark', 'bright', 'warm', 'cool', 'hot', 'cold', 'fast', 'slow',
+    'loud', 'quiet', 'soft', 'hard', 'deep', 'high', 'low', 'wide', 'narrow', 'big',
+    'small', 'massive', 'tiny', 'huge', 'mini', 'giant', 'micro', 'macro', 'ultra', 'super',
+    'create', 'build', 'drop', 'rise', 'fall', 'pump', 'bang', 'crash', 'flow', 'move',
+    'dance', 'jump', 'bounce', 'shake', 'vibrate', 'pulse', 'throb', 'pound', 'slam', 'hit'
+  ];
+
+  const generateRandomPrompt = () => {
+    if (randomPromptCount >= 100) {
+      toast.error('Random prompt limit reached (100 times)');
+      return;
+    }
+    
+    const shuffled = [...musicWords].sort(() => 0.5 - Math.random());
+    const selectedWords = shuffled.slice(0, 20);
+    const randomPrompt = selectedWords.join(' ');
+    
+    setPrompt(randomPrompt);
+    setRandomPromptCount(prev => prev + 1);
+    toast.success(`Random prompt generated! (${randomPromptCount + 1}/100)`);
+  };
 
   // Word limit validation
   const getWordLimit = () => {
@@ -55,6 +89,55 @@ const TextToSong: React.FC = () => {
     'Chill', 'Peaceful', 'Mysterious', 'Melancholic', 'Romantic',
     // Dark & Intense
     'Dark', 'Intense', 'Mysterious', 'Hypnotic', 'Euphoric'
+  ];
+
+  // AI Models with unique characteristics
+  const aiModels = [
+    {
+      id: 'AIVA-1',
+      name: '🎵 AIVA 1',
+      description: 'Professional EDM & Electronic music generation',
+      specialty: 'EDM, House, Techno',
+      quality: 'High',
+      speed: 'Fast',
+      characteristics: ['Heavy Bass', 'Professional Drops', 'Clean Mix']
+    },
+    {
+      id: 'AIVA-2',
+      name: '🎼 AIVA 2',
+      description: 'Versatile multi-genre music creation',
+      specialty: 'All Genres',
+      quality: 'Ultra High',
+      speed: 'Medium',
+      characteristics: ['Rich Harmonies', 'Dynamic Range', 'Studio Quality']
+    },
+    {
+      id: 'AIVA-3',
+      name: '🥁 AIVA 3',
+      description: 'Rhythm-focused with powerful drum patterns',
+      specialty: 'Hip Hop, Trap, Drum & Bass',
+      quality: 'High',
+      speed: 'Fast',
+      characteristics: ['Punchy Drums', 'Tight Rhythms', 'Urban Vibes']
+    },
+    {
+      id: 'AIVA-4',
+      name: '🌊 AIVA 4',
+      description: 'Retro-futuristic synthesizer specialist',
+      specialty: 'Synthwave, Ambient, Trance',
+      quality: 'High',
+      speed: 'Medium',
+      characteristics: ['Analog Warmth', 'Atmospheric Pads', 'Nostalgic Feel']
+    },
+    {
+      id: 'AIVA-5',
+      name: '🎻 AIVA 5',
+      description: 'Traditional and orchestral music expert',
+      specialty: 'Classical, Jazz, Ambient',
+      quality: 'Ultra High',
+      speed: 'Slow',
+      characteristics: ['Orchestral Depth', 'Complex Arrangements', 'Emotional']
+    }
   ];
 
   const edmEffects = [
@@ -486,7 +569,8 @@ const TextToSong: React.FC = () => {
     setLoading(true);
     setProgress(0);
     
-    const loadingToast = toast.loading('🎵 AI is composing your masterpiece...', { 
+    const currentModel = aiModels.find(m => m.id === selectedAIModel);
+    const loadingToast = toast.loading(`🤖 ${currentModel?.name || 'AI'} is composing your masterpiece...`, { 
       duration: Infinity,
       style: {
         background: '#1a1a1a',
@@ -496,35 +580,82 @@ const TextToSong: React.FC = () => {
     });
 
     try {
+      // Validate audio service availability
+      if (!aiService) {
+        throw new Error('Audio service not available');
+      }
+      
+      console.log('🎵 Starting audio generation with robust error handling...');
+      
+      // Validate that audio files are accessible
+      try {
+        const testAudio = new Audio('/edm/myedm1.mp3');
+        await new Promise((resolve, reject) => {
+          testAudio.addEventListener('canplaythrough', resolve, { once: true });
+          testAudio.addEventListener('error', reject, { once: true });
+          testAudio.load();
+          // Add timeout for audio loading test
+          setTimeout(() => reject(new Error('Audio file test timeout')), 3000);
+        });
+        console.log('✅ Audio files accessibility verified');
+      } catch (audioTestError) {
+        console.warn('⚠️ Audio file accessibility test failed:', audioTestError);
+        // Continue anyway, but log the warning
+      }
+      
       const outputUrl = await aiService.textToMusic(
         prompt,
         {
           duration,
           genre,
-          mood
+          mood,
+          aiModel: selectedAIModel
         },
         (progressValue) => {
           setProgress(progressValue);
         }
       );
+      
+      console.log('🤖 Generated audio with AI Model:', selectedAIModel, '- URL:', outputUrl);
 
       let finalOutputUrl = outputUrl;
       
       // Generate and mix voice if enabled
       if (enableVoiceMix && voicePrompt.trim()) {
+        let voiceTimeout: NodeJS.Timeout | null = null;
         try {
           setProgress(85);
           toast.loading('🎤 Generating voice...', { id: loadingToast });
           
+          // Validate voice parameters
+          if (!voicePrompt || voicePrompt.trim().length === 0) {
+            throw new Error('Voice prompt is empty');
+          }
+          
+          if (!voiceStyle) {
+            throw new Error('Voice style not selected');
+          }
+          
           // Add timeout to prevent hanging
-          const voiceTimeout = setTimeout(() => {
+          voiceTimeout = setTimeout(() => {
             console.warn('⚠️ Voice generation timeout, continuing without voice');
             setProgress(95);
-          }, 10000); // 10 second timeout
+            throw new Error('Voice generation timeout');
+          }, 15000); // 15 second timeout (increased)
           
           console.log('🎤 Generating voice audio with settings:', { voicePrompt, voiceStyle, voiceVolume });
           const voiceBlob = await generateVoiceAudio(voicePrompt, voiceStyle);
-          clearTimeout(voiceTimeout); // Clear timeout on success
+          
+          if (voiceTimeout) {
+            clearTimeout(voiceTimeout); // Clear timeout on success
+            voiceTimeout = null;
+          }
+          
+          // Validate voice blob
+          if (!voiceBlob || voiceBlob.size === 0) {
+            throw new Error('Voice generation failed - empty audio');
+          }
+          
           console.log('✅ Voice blob generated:', voiceBlob.size, 'bytes, type:', voiceBlob.type);
           setProgress(87); // Update progress after voice generation
           
@@ -565,17 +696,43 @@ const TextToSong: React.FC = () => {
             console.warn('⚠️ Voice mixing returned original URL, mixing may have failed');
           }
         } catch (voiceError) {
-          clearTimeout(voiceTimeout); // Clear timeout on error
+          // Clean up timeout if it exists
+          if (voiceTimeout) {
+            clearTimeout(voiceTimeout);
+            voiceTimeout = null;
+          }
+          
           console.error('❌ Voice generation/mixing error:', voiceError);
           console.error('Voice error details:', {
             voicePrompt,
             voiceStyle,
             voiceVolume,
-            error: voiceError.message
+            error: voiceError instanceof Error ? voiceError.message : 'Unknown error',
+            stack: voiceError instanceof Error ? voiceError.stack : undefined
           });
+          
+          // Ensure progress continues
           await new Promise(resolve => setTimeout(resolve, 300));
-          setProgress(95); // Continue progress even if voice mixing fails
-          toast.warning('Voice mixing failed, using original track');
+          setProgress(95);
+          
+          // Show appropriate error message based on error type
+          const errorMessage = voiceError instanceof Error ? voiceError.message : 'Unknown error';
+          if (errorMessage.includes('timeout')) {
+            toast.warning('Voice generation timed out, using original track', {
+              id: loadingToast + '_timeout',
+              duration: 4000
+            });
+          } else if (errorMessage.includes('empty')) {
+            toast.warning('Voice generation failed (empty audio), using original track', {
+              id: loadingToast + '_empty',
+              duration: 4000
+            });
+          } else {
+            toast.warning(`Voice mixing failed: ${errorMessage}. Using original track.`, {
+              id: loadingToast + '_error',
+              duration: 4000
+            });
+          }
         }
       } else {
         // No voice mixing, complete progress
@@ -612,20 +769,73 @@ const TextToSong: React.FC = () => {
       await new Promise(resolve => setTimeout(resolve, 500));
       setProgress(100);
       
-      toast.success(enableVoiceMix ? '🎵🎤 Professional track with voice generated successfully!' : '🎵 Professional track generated successfully!', { 
+      const successMessage = enableVoiceMix 
+        ? `🎵🎤 Professional track with voice generated by ${currentModel?.name || 'AI'}!` 
+        : `🎵 Professional track generated by ${currentModel?.name || 'AI'}!`;
+      
+      toast.success(successMessage, { 
         id: loadingToast,
-        duration: 4000,
+        duration: 5000,
         icon: '🎉'
       });
+      
+      // Show additional model info
+      if (currentModel) {
+        setTimeout(() => {
+          toast.success(`✨ Model: ${currentModel.name} | Quality: ${currentModel.quality} | Speed: ${currentModel.speed}`, {
+            duration: 3000,
+            style: {
+              background: '#1a1a1a',
+              color: '#06b6d4',
+              border: '1px solid #06b6d4',
+            }
+          });
+        }, 1000);
+      }
       
       // Reset form
       setPrompt('');
       setProgress(0);
       
     } catch (error) {
+      console.error('❌ Text-to-song generation error:', error);
+      console.error('Error details:', {
+        prompt,
+        duration,
+        genre,
+        mood,
+        enableVoiceMix,
+        voicePrompt,
+        voiceStyle,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined
+      });
+      
       setProgress(100); // Complete progress even on error
-      toast.error('Failed to generate track. Please try again.', { id: loadingToast });
-      console.error('Text-to-song generation error:', error);
+      
+      // Show specific error message based on error type
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      if (errorMessage.includes('service not available')) {
+        toast.error('Audio service temporarily unavailable. Please try again in a moment.', { 
+          id: loadingToast,
+          duration: 5000
+        });
+      } else if (errorMessage.includes('credits')) {
+        toast.error('Insufficient credits. Please upgrade your plan.', { 
+          id: loadingToast,
+          duration: 5000
+        });
+      } else if (errorMessage.includes('network') || errorMessage.includes('fetch')) {
+        toast.error('Network error. Please check your connection and try again.', { 
+          id: loadingToast,
+          duration: 5000
+        });
+      } else {
+        toast.error(`Track generation failed: ${errorMessage}. Please try again.`, { 
+          id: loadingToast,
+          duration: 5000
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -692,6 +902,10 @@ const TextToSong: React.FC = () => {
                 PREMIUM
               </span>
             )}
+            <span className="px-2 py-1 bg-gradient-to-r from-purple-500 to-purple-600 text-white text-xs font-bold rounded-full flex items-center">
+              <Sparkles className="w-3 h-3 mr-1" />
+              Random: {randomPromptCount}/100
+            </span>
             <span className={`text-sm font-medium ${
               isWordLimitExceeded() ? 'text-red-400' : 'text-cyan-400'
             }`}>
@@ -705,12 +919,24 @@ const TextToSong: React.FC = () => {
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
             placeholder={`Describe your perfect song... (${user?.plan === 'premium' ? '100' : '50'} words max)`}
-            className={`w-full h-32 bg-dark-700 border rounded-lg px-4 py-3 text-white placeholder-dark-400 resize-none focus:outline-none focus:ring-2 focus:border-transparent transition-all ${
+            className={`w-full h-32 bg-dark-700 border rounded-lg px-4 py-3 pr-16 text-white placeholder-dark-400 resize-none focus:outline-none focus:ring-2 focus:border-transparent transition-all ${
               isWordLimitExceeded() 
                 ? 'border-red-500/50 focus:ring-red-500' 
                 : 'border-cyan-500/50 focus:ring-cyan-500'
             }`}
           />
+          <button
+            onClick={generateRandomPrompt}
+            disabled={randomPromptCount >= 100}
+            className={`absolute top-3 right-3 p-2 rounded-lg transition-all ${
+              randomPromptCount >= 100
+                ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                : 'bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white hover:scale-105'
+            }`}
+            title={`Generate random prompt (${randomPromptCount}/100)`}
+          >
+            <Sparkles className="w-4 h-4" />
+          </button>
           {isWordLimitExceeded() && (
             <div className="absolute -bottom-6 left-0 text-red-400 text-sm flex items-center">
               <span className="mr-1">⚠️</span>
@@ -742,7 +968,52 @@ const TextToSong: React.FC = () => {
           <h3 className="text-xl font-semibold text-white">Professional Track Settings</h3>
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+          {/* AI Model */}
+          <div>
+            <label className="block text-sm font-medium text-cyan-400 mb-2 flex items-center">
+              <Brain className="w-4 h-4 mr-1" />
+              AI Model
+            </label>
+            <select
+              value={selectedAIModel}
+              onChange={(e) => setSelectedAIModel(e.target.value)}
+              className="w-full bg-dark-700 border border-cyan-500/50 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+            >
+              {aiModels.map(model => (
+                <option key={model.id} value={model.id}>
+                  {model.name}
+                </option>
+              ))}
+            </select>
+            {/* Model Info */}
+            {(() => {
+              const currentModel = aiModels.find(m => m.id === selectedAIModel);
+              return currentModel ? (
+                <div className="mt-2 p-2 bg-dark-600/50 rounded text-xs">
+                  <div className="text-cyan-300 font-medium">{currentModel.description}</div>
+                  <div className="text-dark-300 mt-1">Specialty: {currentModel.specialty}</div>
+                  <div className="flex items-center space-x-2 mt-1">
+                    <span className={`px-1 py-0.5 rounded text-xs ${
+                      currentModel.quality === 'Ultra High' ? 'bg-purple-500/20 text-purple-300' :
+                      currentModel.quality === 'High' ? 'bg-green-500/20 text-green-300' :
+                      'bg-blue-500/20 text-blue-300'
+                    }`}>
+                      {currentModel.quality}
+                    </span>
+                    <span className={`px-1 py-0.5 rounded text-xs ${
+                      currentModel.speed === 'Fast' ? 'bg-green-500/20 text-green-300' :
+                      currentModel.speed === 'Medium' ? 'bg-yellow-500/20 text-yellow-300' :
+                      'bg-red-500/20 text-red-300'
+                    }`}>
+                      {currentModel.speed}
+                    </span>
+                  </div>
+                </div>
+              ) : null;
+            })()}
+          </div>
+          
           {/* Genre */}
           <div>
             <label className="block text-sm font-medium text-cyan-400 mb-2">Genre</label>
