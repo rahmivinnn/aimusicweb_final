@@ -103,11 +103,50 @@ const Subscription: React.FC = () => {
       />
       {/* Particle layer subscription */}
       <div className="absolute inset-0 pointer-events-none z-0">
-        {[...Array(16)].map((_, i) => (
+        {Array.from({ length: 16 }).map((_, i) => (
+          <motion.div
+            key={i}
+            className="absolute w-2 h-2 rounded-full bg-cyan-400 opacity-20"
+            style={{
+              top: `${Math.random() * 100}%`,
+              left: `${Math.random() * 100}%`
+            }}
+            animate={{
+              y: [0, -30, 0],
+              opacity: [0.2, 0.6, 0.2]
+            }}
+            transition={{
+              duration: 6 + Math.random() * 2,
+              repeat: Infinity,
+              delay: Math.random() * 2
+            }}
+          />
+        ))}
+      </div>
       {/* Confetti/Sparkles */}
       {showConfetti && (
         <div className="fixed inset-0 z-50 pointer-events-none flex items-center justify-center">
-          <Sparkles className="w-32 h-32 text-yellow-400 animate-spin-slow" />
+          {Array.from({ length: 30 }).map((_, i) => (
+            <motion.div
+              key={i}
+              className="absolute w-3 h-3 rounded-full"
+              style={{
+                top: `${Math.random() * 10}%`,
+                left: `${Math.random() * 100}%`,
+                background: `hsl(${Math.random()*360},90%,60%)`,
+                opacity: 0.8
+              }}
+              animate={{
+                y: [0, 800],
+                opacity: [0.8, 0.2]
+              }}
+              transition={{
+                duration: 2.2 + Math.random(),
+                repeat: Infinity,
+                delay: Math.random() * 1.5
+              }}
+            />
+          ))}
           <span className="text-4xl font-bold text-yellow-400 animate-bounce ml-4">Congratulations!</span>
         </div>
       )}
