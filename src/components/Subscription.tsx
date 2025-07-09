@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 
 const Subscription: React.FC = () => {
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
+  const [showConfetti, setShowConfetti] = useState(false);
 
   const plans = [
     {
@@ -77,6 +78,8 @@ const Subscription: React.FC = () => {
     toast.loading('Redirecting to secure checkout...', { duration: 2000 });
     setTimeout(() => {
       toast.success(`Subscribed to ${planName} plan! Welcome to premium features! 🎉`);
+      setShowConfetti(true);
+      setTimeout(() => setShowConfetti(false), 2500);
     }, 2000);
   };
 
@@ -87,6 +90,27 @@ const Subscription: React.FC = () => {
 
   return (
     <div className="max-w-7xl mx-auto p-6 space-y-8">
+      {/* Animated gradient background subscription */}
+      <motion.div
+        className="fixed inset-0 -z-10"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        style={{
+          background: 'linear-gradient(120deg, #181028 0%, #2e1a47 50%, #0ff 100%)',
+          backgroundSize: '200% 200%',
+          animation: 'gradientMove 8s ease-in-out infinite'
+        }}
+      />
+      {/* Particle layer subscription */}
+      <div className="absolute inset-0 pointer-events-none z-0">
+        {[...Array(16)].map((_, i) => (
+      {/* Confetti/Sparkles */}
+      {showConfetti && (
+        <div className="fixed inset-0 z-50 pointer-events-none flex items-center justify-center">
+          <Sparkles className="w-32 h-32 text-yellow-400 animate-spin-slow" />
+          <span className="text-4xl font-bold text-yellow-400 animate-bounce ml-4">Congratulations!</span>
+        </div>
+      )}
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
@@ -121,6 +145,7 @@ const Subscription: React.FC = () => {
           <div className="flex items-center space-x-2">
             <motion.button
               whileTap={{ scale: 0.95 }}
+              whileHover={{ backgroundColor: '#a084fa', color: '#fff' }}
               onClick={() => setBillingCycle('monthly')}
               className={`px-6 py-2 rounded-lg font-medium transition-all ${
                 billingCycle === 'monthly'
@@ -132,6 +157,7 @@ const Subscription: React.FC = () => {
             </motion.button>
             <motion.button
               whileTap={{ scale: 0.95 }}
+              whileHover={{ backgroundColor: '#a084fa', color: '#fff' }}
               onClick={() => setBillingCycle('yearly')}
               className={`px-6 py-2 rounded-lg font-medium transition-all relative ${
                 billingCycle === 'yearly'
@@ -149,14 +175,22 @@ const Subscription: React.FC = () => {
       </motion.div>
 
       {/* Plans Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+      <motion.div
+        initial="hidden"
+        animate="visible"
+        variants={{
+          hidden: {},
+          visible: { transition: { staggerChildren: 0.12 } }
+        }}
+        className="grid grid-cols-1 md:grid-cols-3 gap-8"
+      >
         {plans.map((plan, index) => (
           <motion.div
             key={plan.name}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 + index * 0.1 }}
-            whileHover={{ scale: 1.02, y: -5 }}
+            whileHover={{ scale: 1.05, boxShadow: '0 0 32px #a084fa88', borderColor: '#a084fa' }}
             className={`relative bg-gradient-to-br from-dark-800 to-dark-850 rounded-xl p-8 border transition-all duration-300 ${
               plan.popular 
                 ? 'border-purple-500 shadow-xl shadow-purple-500/20' 
@@ -255,7 +289,7 @@ const Subscription: React.FC = () => {
             </motion.button>
           </motion.div>
         ))}
-      </div>
+      </motion.div>
 
       {/* Features Comparison */}
       <motion.div

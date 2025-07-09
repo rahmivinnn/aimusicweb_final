@@ -3,14 +3,31 @@ import { Sparkles } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import toast from 'react-hot-toast';
 import { v4 as uuidv4 } from 'uuid';
+import { useEffect } from 'react';
+import AudioPlayer from './AudioPlayer';
+
+const edmFiles = [
+  '/new/edm-140530.mp3',
+  '/new/bar-heights-edm-music-230648.mp3',
+  '/new/edm-dance-club-music-259530.mp3',
+  '/new/the-streets-of-tokyo-1-min-edit-japanese-style-edm-370224.mp3',
+  '/new/quirky-edm-with-toy-sounds-silly-vocal-chops-371342.mp3',
+  '/new/edm-club-music-265781.mp3'
+];
 
 const TextToSong: React.FC = () => {
-  const { addTrack } = useStore();
+  const { addTrack, user, useCredit } = useStore();
   const [prompt, setPrompt] = useState('');
   const [genre, setGenre] = useState('EDM');
   const [mood, setMood] = useState('Energetic');
   const [progress, setProgress] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
+  const [mixing, setMixing] = useState(false);
+  const [mixProgress, setMixProgress] = useState(0);
+  const [mixedUrl, setMixedUrl] = useState<string | null>(null);
+  const [filesReady, setFilesReady] = useState(true);
+  const [missingFiles, setMissingFiles] = useState<string[]>([]);
+  const [showSubModal, setShowSubModal] = useState(false);
   
   const isWordLimitExceeded = (text: string): boolean => {
     const wordCount = text.trim().split(/\s+/).length;
@@ -26,6 +43,41 @@ const TextToSong: React.FC = () => {
     console.error(error);
   };
 
+  const vokalFile = '/new/sample.mp3';
+
+  // Pengecekan otomatis file EDM dan vokal di awal
+  useEffect(() => {
+    let cancelled = false;
+    async function checkFiles() {
+      const missing: string[] = [];
+      // Cek vokal
+      try {
+        const res = await fetch(vokalFile, { method: 'HEAD' });
+        if (!res.ok) missing.push(vokalFile);
+      } catch {
+        missing.push(vokalFile);
+      }
+      // Cek semua EDM
+      for (const edm of edmFiles) {
+        try {
+          const res = await fetch(edm, { method: 'HEAD' });
+          if (!res.ok) missing.push(edm);
+        } catch {
+          missing.push(edm);
+        }
+      }
+      if (!cancelled) {
+        setMissingFiles(missing);
+        setFilesReady(missing.length === 0);
+        if (missing.length > 0) {
+          toast.error('Beberapa file audio tidak ditemukan: ' + missing.join(', '));
+        }
+      }
+    }
+    checkFiles();
+    return () => { cancelled = true; };
+  }, []);
+
   const handleGenerateTrack = async () => {
     if (!prompt.trim()) {
       toast.error('Please enter a description for your song');
@@ -38,28 +90,94 @@ const TextToSong: React.FC = () => {
     }
 
     setIsLoading(true);
+    setMixing(true);
     setProgress(0);
+    setMixProgress(0);
+    setMixedUrl(null);
 
     try {
-      // Simulate progress updates
-      const interval = setInterval(() => {
-        setProgress(prev => {
-          const newProgress = prev + Math.floor(Math.random() * 10) + 5;
-          return newProgress > 90 ? 90 : newProgress;
-        });
-      }, 500);
-
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 3000));
-      clearInterval(interval);
-      setProgress(100);
-
-          // Add a sample track to the store
+      // Pilih EDM random
+      const edmUrl = edmFiles[Math.floor(Math.random() * edmFiles.length)];
+      // Fetch vokal manusia
+      let vokalResponse;
+      try {
+        vokalResponse = await fetch(vokalFile);
+        if (!vokalResponse.ok) throw new Error('Vokal file not found');
+      } catch (e) {
+        toast.error('Vokal file gagal di-load. Pastikan /new/sample.mp3 ada dan bisa diakses.');
+        setIsLoading(false);
+        setMixing(false);
+        return;
+      }
+      const vokalArrayBuffer = await vokalResponse.arrayBuffer();
+      // Fetch EDM audio
+      let edmResponse;
+      try {
+        edmResponse = await fetch(edmUrl);
+        if (!edmResponse.ok) throw new Error('EDM file not found');
+      } catch (e) {
+        toast.error('EDM file gagal di-load. Pastikan file EDM ada di /new/.');
+        setIsLoading(false);
+        setMixing(false);
+        return;
+      }
+      const edmArrayBuffer = await edmResponse.arrayBuffer();
+      // Decode audio
+      const audioCtx = new (window.OfflineAudioContext || (window as any).webkitOfflineAudioContext)(2, 44100 * 180, 44100);
+      const [vokalBuffer, edmBuffer] = await Promise.all([
+        audioCtx.decodeAudioData(vokalArrayBuffer.slice(0)),
+        audioCtx.decodeAudioData(edmArrayBuffer.slice(0))
+      ]);
+      // Mixing: overlay vokal di atas EDM dari awal
+      const duration = Math.min(vokalBuffer.duration, edmBuffer.duration, 180);
+      const vokalSource = audioCtx.createBufferSource();
+      vokalSource.buffer = vokalBuffer;
+      const edmSource = audioCtx.createBufferSource();
+      edmSource.buffer = edmBuffer;
+      // Gain
+      const vokalGain = audioCtx.createGain();
+      vokalGain.gain.value = 0.85;
+      const edmGain = audioCtx.createGain();
+      edmGain.gain.value = 0.45;
+      // Reverb/Echo pada vokal
+      const convolver = audioCtx.createConvolver();
+      // Buat impulse response sederhana untuk reverb
+      const irBuffer = audioCtx.createBuffer(2, audioCtx.sampleRate * 2, audioCtx.sampleRate);
+      for (let c = 0; c < 2; c++) {
+        const channel = irBuffer.getChannelData(c);
+        for (let i = 0; i < irBuffer.length; i++) {
+          channel[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / irBuffer.length, 2.5);
+        }
+      }
+      convolver.buffer = irBuffer;
+      // Routing: vokal -> gain -> reverb -> destination
+      vokalSource.connect(vokalGain).connect(convolver).connect(audioCtx.destination);
+      edmSource.connect(edmGain).connect(audioCtx.destination);
+      vokalSource.start(0);
+      edmSource.start(0);
+      // Render
+      const renderPromise = audioCtx.startRendering();
+      // Simulasi progress
+      let progress = 0;
+      const progressInterval = setInterval(() => {
+        progress += Math.random() * 20;
+        setMixProgress(Math.min(progress, 95));
+      }, 400);
+      const mixedBuffer = await renderPromise;
+      clearInterval(progressInterval);
+      setMixProgress(100);
+      // Convert ke WAV/Blob
+      const wavBlob = bufferToWavBlob(mixedBuffer);
+      const url = URL.createObjectURL(wavBlob);
+      setMixedUrl(url);
+      setIsLoading(false);
+      setMixing(false);
+      // Add to store
       const newTrack = {
         id: uuidv4(),
         name: `${genre} Track - ${new Date().toLocaleTimeString()}`,
-        inputUrl: 'https://example.com/sample.mp3',
-        outputUrl: 'https://example.com/sample.mp3',
+        inputUrl: '',
+        outputUrl: url,
         prompt: prompt,
         genre: genre,
         status: 'completed' as const,
@@ -74,14 +192,49 @@ const TextToSong: React.FC = () => {
         downloads: 0
       };
       addTrack(newTrack);
-
       toast.success('Track generated successfully!');
     } catch (error) {
       handleError(error, 'Failed to generate track');
-    } finally {
       setIsLoading(false);
+      setMixing(false);
     }
   };
+
+  // Helper: convert AudioBuffer to WAV Blob
+  function bufferToWavBlob(buffer: AudioBuffer): Blob {
+    const numOfChan = buffer.numberOfChannels;
+    const length = buffer.length * numOfChan * 2 + 44;
+    const bufferArray = new ArrayBuffer(length);
+    const view = new DataView(bufferArray);
+    writeString(view, 0, 'RIFF');
+    view.setUint32(4, 36 + buffer.length * numOfChan * 2, true);
+    writeString(view, 8, 'WAVE');
+    writeString(view, 12, 'fmt ');
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true);
+    view.setUint16(22, numOfChan, true);
+    view.setUint32(24, buffer.sampleRate, true);
+    view.setUint32(28, buffer.sampleRate * numOfChan * 2, true);
+    view.setUint16(32, numOfChan * 2, true);
+    view.setUint16(34, 16, true);
+    writeString(view, 36, 'data');
+    view.setUint32(40, buffer.length * numOfChan * 2, true);
+    let offset = 44;
+    for (let i = 0; i < buffer.length; i++) {
+      for (let ch = 0; ch < numOfChan; ch++) {
+        let sample = buffer.getChannelData(ch)[i];
+        sample = Math.max(-1, Math.min(1, sample));
+        view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7FFF, true);
+        offset += 2;
+      }
+    }
+    return new Blob([bufferArray], { type: 'audio/wav' });
+  }
+  function writeString(view: DataView, offset: number, str: string) {
+    for (let i = 0; i < str.length; i++) {
+      view.setUint8(offset + i, str.charCodeAt(i));
+    }
+  }
 
   return (
     <div className="max-w-4xl mx-auto p-6">
@@ -185,28 +338,47 @@ const TextToSong: React.FC = () => {
 
           {/* Generate Button */}
           <button
-            onClick={handleGenerateTrack}
-            disabled={isLoading || !prompt.trim()}
-            className={`w-full py-4 px-6 rounded-xl font-semibold text-white transition-all
-              bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 
-              transform hover:scale-105 flex items-center justify-center gap-2
-              ${isLoading || !prompt.trim() ? 'opacity-50 cursor-not-allowed' : ''}
-              ${!isLoading ? 'hover:scale-105' : ''}`}
+            onClick={() => {
+              if (user?.credits === 0) {
+                setShowSubModal(true);
+                return;
+              }
+              handleGenerateTrack();
+            }}
+            disabled={user?.credits === 0 || isLoading}
+            className={`w-full py-3 rounded-lg bg-cyan-400 text-white font-bold text-lg shadow-lg hover:bg-cyan-300 transition-all ${user?.credits === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
-            {isLoading ? (
-              <>
-                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                <span>Generating...</span>
-              </>
-            ) : (
-              <>
-                <Sparkles className="w-5 h-5" />
-                <span>{prompt.trim() ? 'Generate Track' : 'Enter a description to begin'}</span>
-              </>
-            )}
+            {isLoading ? 'Generating...' : 'Generate Song'}
           </button>
+          {missingFiles.length > 0 && (
+            <div className="text-red-400 text-sm mb-2">
+              File tidak ditemukan: {missingFiles.join(', ')}
+            </div>
+          )}
         </div>
       </div>
+      {mixedUrl && (
+        <div className="mt-6">
+          <AudioPlayer src={mixedUrl} title="Your EDM + Vocal Track" className="w-full" showWaveformVisualizer />
+          <a
+            href={mixedUrl}
+            download="edm-vocal-mix.wav"
+            className="inline-block mt-3 px-4 py-2 bg-cyan-600 text-white rounded-lg shadow hover:bg-cyan-700 transition-all"
+          >
+            Download Mixed Audio
+          </a>
+        </div>
+      )}
+      {showSubModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+          <div className="bg-dark-800 rounded-xl p-8 max-w-md w-full relative border border-cyan-500">
+            <button className="absolute top-2 right-2 text-cyan-400" onClick={() => setShowSubModal(false)}>&times;</button>
+            <h2 className="text-xl font-bold mb-4 text-cyan-400 flex items-center">Upgrade to Pro</h2>
+            <p className="text-white mb-4">Your free credits are used up. Subscribe to unlock unlimited text-to-song and premium features!</p>
+            <button className="w-full py-3 rounded-lg bg-gradient-to-r from-cyan-400 to-purple-500 text-white font-bold text-lg shadow-lg hover:bg-cyan-300 transition-all" onClick={() => window.location.hash = '#subscription'}>Go to Subscription</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

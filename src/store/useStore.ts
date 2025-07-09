@@ -61,39 +61,26 @@ interface AppState {
   subscribe: () => void;
 }
 
-// Replace sampleTracks with real EDM files only
-const edmFiles = [
-  'edm/myedm1.mp3',
-  'edm/myedm2.mp3',
-  'edm/myedm3.mp3',
-  'edm/myedm4.mp3',
-  'edm/myedm5.mp3',
-  'edm/myedm6.mp3',
-  'edm/myedm7.mp3',
-  'edm/myedm8.mp3',
-  'edm/myedm9.mp3',
-  'edm/myedm10.mp3',
-  'edm/myedm11.mp3',
-  'edm/myedm12.mp3',
-  'edm/myedm13.mp3',
-  'edm/myedm1.mp3',
-  'edm/myedm2.mp3',
-  'edm/myedm3.mp3',
-  'edm/myedm4.mp3',
-  'edm/myedm5.mp3',
-  'edm/myedm6.mp3',
-  'edm/myedm7.mp3',
-  'edm/myedm8.mp3',
-  'edm/myedm9.mp3',
-  'edm/myedm10.mp3',
-  'edm/myedm11.mp3',
-  'edm/myedm12.mp3',
-  'edm/myedm13.mp3',
-  'edm/myedm1.mp3',
-  'edm/myedm2.mp3',
-  'edm/myedm3.mp3',
-  'edm/myedm4.mp3'
+// Ganti edmFiles dan premiumAlbumArts dengan file dari public/new
+const newEdmFiles = [
+  'new/edm-140530.mp3',
+  'new/bar-heights-edm-music-230648.mp3',
+  'new/edm-dance-club-music-259530.mp3',
+  'new/the-streets-of-tokyo-1-min-edit-japanese-style-edm-370224.mp3',
+  'new/quirky-edm-with-toy-sounds-silly-vocal-chops-371342.mp3',
+  'new/edm-club-music-265781.mp3'
 ];
+
+function shuffleArray<T>(array: T[]): T[] {
+  const arr = [...array];
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+const shuffledEdmFiles = shuffleArray(newEdmFiles);
 
 const premiumAlbumArts = [
   'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=400&q=80',
@@ -128,9 +115,9 @@ const premiumAlbumArts = [
   'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?auto=format&fit=crop&w=400&q=80'
 ];
 
-const sampleTracks: Track[] = edmFiles.map((url, i) => ({
+const sampleTracks: Track[] = shuffledEdmFiles.map((url, i) => ({
   id: (i + 1).toString(),
-  name: `EDM Track #${i + 1}`,
+  name: `EDM Remix #${i + 1}`,
   inputUrl: '',
   outputUrl: url,
   prompt: 'EDM AI Remix',

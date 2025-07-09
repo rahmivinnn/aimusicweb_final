@@ -46,14 +46,50 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange }) => {
         )}
       </AnimatePresence>
 
+      {/* Animated gradient background sidebar */}
+      <motion.div
+        className="fixed inset-y-0 left-0 w-80 -z-10 hidden lg:block"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        style={{
+          background: 'linear-gradient(120deg, #181028 0%, #2e1a47 50%, #0ff 100%)',
+          backgroundSize: '200% 200%',
+          animation: 'gradientMove 8s ease-in-out infinite'
+        }}
+      />
+      {/* Particle layer sidebar */}
+      <div className="absolute inset-0 pointer-events-none z-0">
+        {[...Array(10)].map((_, i) => (
+          <motion.div
+            key={i}
+            className="absolute w-1.5 h-1.5 rounded-full bg-cyan-400 opacity-20"
+            style={{
+              top: `${Math.random() * 100}%`,
+              left: `${Math.random() * 100}%`
+            }}
+            animate={{
+              y: [0, -20, 0],
+              opacity: [0.2, 0.5, 0.2]
+            }}
+            transition={{
+              duration: 5 + Math.random() * 2,
+              repeat: Infinity,
+              delay: Math.random() * 2
+            }}
+          />
+        ))}
+      </div>
+
       {/* Sidebar */}
       <motion.div
         initial={false}
         animate={{
           width: sidebarCollapsed ? 0 : 280,
-          opacity: sidebarCollapsed ? 0 : 1
+          opacity: sidebarCollapsed ? 0 : 1,
+          rotateY: sidebarCollapsed ? 60 : 0,
+          scale: sidebarCollapsed ? 0.9 : 1
         }}
-        transition={{ duration: 0.3, ease: "easeInOut" }}
+        transition={{ duration: 0.5, type: 'spring', bounce: 0.4 }}
         className={`fixed lg:relative top-0 left-0 h-full bg-dark-900 border-r border-dark-700 flex flex-col z-50 overflow-hidden`}
       >
         {/* Header */}
@@ -87,7 +123,6 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange }) => {
             {menuItems.map((item, index) => {
               const Icon = item.icon;
               const isActive = activeTab === item.id;
-              
               return (
                 <motion.li
                   key={item.id}
@@ -96,27 +131,41 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange }) => {
                   transition={{ delay: index * 0.1 }}
                 >
                   <motion.button
-                    whileHover={{ scale: 1.02, x: 4 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => {
+                    whileHover={{ scale: 1.12, x: 10, rotate: 2 }}
+                    whileTap={{ scale: 0.97 }}
+                    onClick={e => {
+                      // Ripple effect
+                      const btn = e.currentTarget;
+                      const ripple = document.createElement('span');
+                      ripple.className = 'sidebar-ripple';
+                      ripple.style.left = e.nativeEvent.offsetX + 'px';
+                      ripple.style.top = e.nativeEvent.offsetY + 'px';
+                      btn.appendChild(ripple);
+                      setTimeout(() => ripple.remove(), 600);
                       onTabChange(item.id);
                       if (window.innerWidth < 1024) {
                         setSidebarCollapsed(true);
                       }
                     }}
-                    className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200 ${
+                    className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200 relative overflow-hidden group ${
                       isActive 
-                        ? 'bg-gradient-to-r from-cyan-600 to-cyan-700 text-white shadow-lg shadow-cyan-500/25' 
+                        ? 'bg-gradient-to-r from-cyan-600 via-purple-500 to-cyan-700 text-white shadow-lg shadow-cyan-500/25 animate-gradient-x sidebar-active-glow' 
                         : 'text-dark-300 hover:bg-dark-800 hover:text-white'
                     }`}
                   >
-                    <Icon className="w-5 h-5" />
+                    <motion.span
+                      whileHover={{ y: [-2, 2, -2], transition: { repeat: Infinity, duration: 0.6 } }}
+                      className="inline-block"
+                    >
+                      <Icon className="w-5 h-5" />
+                    </motion.span>
                     <span className="font-medium">{item.label}</span>
                     {item.id === 'notifications' && (
                       <span className="ml-auto bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
                         3
                       </span>
                     )}
+                    {/* Ripple effect span */}
                   </motion.button>
                 </motion.li>
               );
@@ -143,8 +192,8 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange }) => {
               <motion.div 
                 initial={{ width: 0 }}
                 animate={{ width: `${((user?.credits || 0) / 10) * 100}%` }}
-                transition={{ duration: 1, delay: 0.5 }}
-                className="bg-gradient-to-r from-cyan-500 to-cyan-400 h-2 rounded-full"
+                transition={{ duration: 1, delay: 0.5, type: 'spring', bounce: 0.4 }}
+                className="bg-gradient-to-r from-cyan-500 to-cyan-400 h-2 rounded-full shadow-[0_0_8px_#0ff8]"
               />
             </div>
             

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Loader2 } from 'lucide-react';
 
 interface AuthScreenProps {
   onLogin?: () => void;
@@ -15,23 +16,75 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
   const [showForgot, setShowForgot] = useState(false);
   const [forgotEmail, setForgotEmail] = useState('');
   const [forgotSent, setForgotSent] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(false);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#1a1123]">
+      {/* Animated gradient background */}
+      <motion.div
+        className="fixed inset-0 -z-10"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        style={{
+          background: 'linear-gradient(120deg, #1a1123 0%, #2e1a47 50%, #0ff 100%)',
+          backgroundSize: '200% 200%',
+          animation: 'gradientMove 8s ease-in-out infinite'
+        }}
+      />
+      {/* Particle layer */}
+      <div className="absolute inset-0 pointer-events-none z-0">
+        {[...Array(20)].map((_, i) => (
+          <motion.div
+            key={i}
+            className="absolute w-2 h-2 rounded-full bg-cyan-400 opacity-30"
+            style={{
+              top: `${Math.random() * 100}%`,
+              left: `${Math.random() * 100}%`
+            }}
+            animate={{
+              y: [0, -30, 0],
+              opacity: [0.3, 0.7, 0.3]
+            }}
+            transition={{
+              duration: 4 + Math.random() * 2,
+              repeat: Infinity,
+              delay: Math.random() * 2
+            }}
+          />
+        ))}
+      </div>
       <div className="flex flex-col md:flex-row w-full max-w-5xl bg-transparent rounded-2xl overflow-hidden shadow-2xl">
         {/* Left: Form */}
         <div className="flex-1 flex flex-col justify-center px-8 py-12 bg-transparent">
-          <div className="flex flex-col items-center mb-8">
-            <img src="/logo.png" alt="Logo" className="w-24 mb-4" style={{filter:'drop-shadow(0 0 8px #fff)'}} />
-            <h1 className="text-4xl md:text-5xl font-bold text-white mb-2 text-center">Get Started</h1>
-            <p className="text-lg text-gray-300 text-center mb-6">Log in to create and remix music with AI-powered tools.</p>
-          </div>
+          <motion.div
+            initial={{ opacity: 0, y: 80, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ duration: 0.8, type: 'spring', bounce: 0.5 }}
+            className="flex flex-col items-center mb-8"
+          >
+            <motion.img src="/logo.png" alt="Logo" className="w-24 mb-4" style={{filter:'drop-shadow(0 0 8px #fff)'}}
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ delay: 0.2, type: 'spring' }}
+            />
+            <motion.h1 className="text-4xl md:text-5xl font-bold text-white mb-2 text-center"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+            >Get Started</motion.h1>
+            <motion.p className="text-lg text-gray-300 text-center mb-6"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4 }}
+            >Log in to create and remix music with AI-powered tools.</motion.p>
+          </motion.div>
           <form className="space-y-6" onSubmit={e => {e.preventDefault();}}>
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-1">Email address</label>
               <input
                 type="email"
-                className="w-full px-4 py-3 rounded-lg bg-[#181028] border border-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-cyan-400"
+                className="w-full px-4 py-3 rounded-lg bg-[#181028] border border-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:shadow-[0_0_16px_#0ff8] transition-all duration-200"
                 placeholder="Email"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
@@ -42,7 +95,7 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
               <label className="block text-sm font-medium text-gray-300 mb-1">Password</label>
               <input
                 type={showPassword ? 'text' : 'password'}
-                className="w-full px-4 py-3 rounded-lg bg-[#181028] border border-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-cyan-400"
+                className="w-full px-4 py-3 rounded-lg bg-[#181028] border border-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:shadow-[0_0_16px_#0ff8] transition-all duration-200"
                 placeholder="Password"
                 value={password}
                 onChange={e => setPassword(e.target.value)}
@@ -74,10 +127,15 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
             </div>
             <button
               type="submit"
-              className="w-full py-3 rounded-lg bg-cyan-400 text-white font-bold text-lg shadow-lg hover:bg-cyan-300 transition-all"
-              onClick={() => { onLogin?.(); }}
+              className="w-full py-3 rounded-lg bg-cyan-400 text-white font-bold text-lg shadow-lg hover:bg-cyan-300 transition-all relative overflow-hidden"
+              onClick={e => { setLoading(true); setTimeout(() => { setLoading(false); onLogin?.(); }, 1200); }}
             >
-              Log in
+              {loading ? (
+                <span className="flex items-center justify-center gap-2"><Loader2 className="animate-spin w-6 h-6" /> Loading...</span>
+              ) : (
+                <span className="relative z-10">Log in</span>
+              )}
+              <span className="absolute left-1/2 top-1/2 w-0 h-0 bg-white/30 rounded-full transform -translate-x-1/2 -translate-y-1/2 group-active:w-32 group-active:h-32 transition-all duration-500" />
             </button>
             <button
               type="button"
@@ -101,15 +159,16 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
       <AnimatePresence>
         {showForgot && (
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
             className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
           >
             <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
+              initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              transition={{ type: 'spring', duration: 0.4 }}
               className="bg-[#181028] rounded-xl p-8 max-w-md w-full relative border border-cyan-500 shadow-2xl"
             >
               <button className="absolute top-2 right-2 text-cyan-400 text-2xl" onClick={() => setShowForgot(false)}>&times;</button>

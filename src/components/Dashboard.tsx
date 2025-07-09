@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Sliders, Music, Sparkles, Clock } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import AudioPlayer from './AudioPlayer';
+import defaultThumbnail from '/default-thumbnail.jpg';
 
 const Dashboard: React.FC<{ setActiveTab?: (tab: string) => void }> = ({ setActiveTab }) => {
   const { user, tracks } = useStore();
@@ -65,27 +66,57 @@ const Dashboard: React.FC<{ setActiveTab?: (tab: string) => void }> = ({ setActi
 
       {/* Recent Remixes */}
       <div>
-        <h2 className="text-2xl font-bold text-white mb-2">Recent Remixes</h2>
+        <h2 className="text-2xl font-bold text-white mb-2 transition-colors duration-500 bg-gradient-to-r from-cyan-400 via-purple-400 to-pink-400 bg-clip-text text-transparent animate-gradient-x">Recent Remixes</h2>
         <p className="text-dark-300 mb-6">Here is the list of your recent remixes</p>
-        <div className="flex gap-6 overflow-x-auto pb-4 hide-scrollbar">
+        <div
+          className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6"
+        >
           {recentTracks.map((track, idx) => (
-            <div key={track.id} className="relative min-w-[220px] max-w-[220px] bg-dark-800 rounded-2xl shadow-lg flex flex-col items-center p-3 group">
-              <div className="relative w-full h-40 rounded-xl overflow-hidden mb-3">
-                <img src={track.albumArt || ''} alt={track.name} className="w-full h-full object-cover rounded-xl" />
-                <button className="absolute top-2 right-2 bg-black/60 rounded-full p-1 text-white hover:text-red-400 transition-colors">
-                  <span role="img" aria-label="love">❤️</span>
+            <motion.div
+              key={track.id}
+              initial={{ opacity: 0, y: 40 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, amount: 0.2 }}
+              transition={{ duration: 0.5, delay: idx * 0.08, type: 'spring', stiffness: 80 }}
+              className="remix-card bg-gradient-to-br from-[#1a2740]/80 via-[#232b3a]/90 to-[#1a1f2c]/90 rounded-xl shadow-xl p-4 transition-all duration-300 hover:shadow-2xl hover:-translate-y-2 hover:scale-[1.035] hover:ring-2 hover:ring-cyan-400/60 hover:border-cyan-400/40 border border-white/10 backdrop-blur-md bg-opacity-80 group flex flex-col"
+              style={{ boxShadow: '0 4px 32px 0 rgba(0,255,255,0.08)' }}
+            >
+              <div className="relative w-full aspect-[16/9] rounded-lg overflow-hidden mb-3">
+                <img
+                  src={track.albumArt || '/default-thumbnail.jpg'}
+                  onError={e => { e.currentTarget.onerror = null; e.currentTarget.src = '/default-thumbnail.jpg'; }}
+                  alt={track.name}
+                  className="w-full h-full object-cover aspect-video transition-all duration-300 hover:brightness-110 group-hover:scale-105 group-hover:shadow-[0_0_24px_#0ff5]"
+                />
+                <button
+                  className="absolute top-2 right-2 z-10 bg-black/60 rounded-full p-1 text-white hover:text-pink-400 transition-all hover:scale-125 group-hover:animate-bounce"
+                  aria-label="Favorite"
+                  tabIndex={0}
+                >
+                  <span role="img" aria-label="love" className="text-xl transition-all duration-200">❤️</span>
                 </button>
               </div>
-              <div className="w-full flex flex-col items-start">
-                <h3 className="text-white font-semibold text-lg truncate w-full">{track.name}</h3>
+              <div className="w-full flex flex-col items-start mb-2">
+                <h3 className="text-white font-semibold text-lg break-words leading-tight mb-1 group-hover:text-cyan-300 transition-colors" style={{wordBreak:'break-word',overflowWrap:'break-word'}}>{track.name}</h3>
                 <span className="text-cyan-300 text-xs font-medium mb-1">{track.genre}</span>
                 <div className="flex items-center gap-2 mt-1">
                   <img src="https://randomuser.me/api/portraits/men/32.jpg" alt="User" className="w-6 h-6 rounded-full border-2 border-cyan-400" />
                   <span className="text-xs text-white/80">{track.userName}</span>
                 </div>
               </div>
-              <AudioPlayer src={track.outputUrl || ''} title={track.name} className="mt-2 w-full" maxDuration={track.duration} />
-            </div>
+              <div className="flex flex-col gap-2 mt-auto w-full">
+                <div className="flex items-center gap-4 w-full">
+                  <AudioPlayer
+                    src={track.outputUrl || ''}
+                    title={track.name}
+                    className="w-full"
+                    maxDuration={track.duration}
+                    buttonClassName="w-12 h-12 hover:scale-110 transition-transform"
+                    progressBarClassName="shadow-[0_0_10px_#0ff]"
+                  />
+                </div>
+              </div>
+            </motion.div>
           ))}
         </div>
       </div>

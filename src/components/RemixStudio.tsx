@@ -8,6 +8,8 @@ import AudioPlayer from './AudioPlayer';
 import { useStore } from '../store/useStore';
 import { aiService } from '../services/aiService';
 import toast from 'react-hot-toast';
+import { useEffect } from 'react';
+import * as MusicBeatDetector from 'music-beat-detector';
 
 const RemixStudio: React.FC = () => {
   const { user, addTrack, setLoading, isLoading, useCredit } = useStore();
@@ -21,6 +23,12 @@ const RemixStudio: React.FC = () => {
   const [showTooltip, setShowTooltip] = useState(false);
   const [showAivaModal, setShowAivaModal] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [mixing, setMixing] = useState(false);
+  const [mixProgress, setMixProgress] = useState(0);
+  const [mixedUrl, setMixedUrl] = useState<string | null>(null);
+  const [aivaActive, setAivaActive] = useState(false);
+  const [aivaBadge, setAivaBadge] = useState(false);
+  const [showSubModal, setShowSubModal] = useState(false);
 
   const edmFiles = [
     'edm/myedm1.mp3',
@@ -36,6 +44,14 @@ const RemixStudio: React.FC = () => {
     'edm/myedm11.mp3',
     'edm/myedm12.mp3',
     'edm/myedm13.mp3'
+  ];
+  const newEdmFiles = [
+    '/new/edm-140530.mp3',
+    '/new/bar-heights-edm-music-230648.mp3',
+    '/new/edm-dance-club-music-259530.mp3',
+    '/new/the-streets-of-tokyo-1-min-edit-japanese-style-edm-370224.mp3',
+    '/new/quirky-edm-with-toy-sounds-silly-vocal-chops-371342.mp3',
+    '/new/edm-club-music-265781.mp3'
   ];
   const [selectedBPM, setSelectedBPM] = useState(128);
   const [selectedEffects, setSelectedEffects] = useState<string[]>(['Heavy Bass']);
@@ -150,6 +166,15 @@ const RemixStudio: React.FC = () => {
     setIsRemixing(false);
   };
 
+  const edmFilesWithBpm = [
+    { file: '/new/edm-140530.mp3', bpm: 90 },
+    { file: '/new/bar-heights-edm-music-230648.mp3', bpm: 128 },
+    { file: '/new/edm-dance-club-music-259530.mp3', bpm: 105 },
+    { file: '/new/the-streets-of-tokyo-1-min-edit-japanese-style-edm-370224.mp3', bpm: 135 },
+    { file: '/new/quirky-edm-with-toy-sounds-silly-vocal-chops-371342.mp3', bpm: 100 },
+    { file: '/new/edm-club-music-265781.mp3', bpm: 125 }
+  ];
+
   const handleGenerateRemix = async () => {
     if (!uploadedFile) {
       toast.error('Please upload an audio file first!');
@@ -161,41 +186,150 @@ const RemixStudio: React.FC = () => {
     }
     setLoading(true);
     setProgress(0);
-    // Simulate progress
     for (let i = 1; i <= 3; i++) {
       setProgress(i * 33);
       await new Promise(res => setTimeout(res, 600));
     }
-    // Pick a random EDM file from the full collection
-    const randomIndex = Math.floor(Math.random() * edmFiles.length);
-    const outputUrl = edmFiles[randomIndex];
-    const newTrack = {
-      id: Date.now().toString(),
-      name: `Remix of: ${uploadedFile.name}`,
-      inputUrl: '',
-      prompt,
-      genre: genreStyle,
-      status: 'completed' as const,
-      createdAt: new Date(),
-      outputUrl,
-      duration: 180,
-      bpm: selectedBPM,
-      style: genreStyle,
-      userId: user.id,
-      userName: user.name,
-      isPublic: true,
-      likes: 0,
-      downloads: 0,
-      effects: selectedEffects,
-      originalFileName: uploadedFile.name
-    };
-    addTrack(newTrack);
-    setGeneratedTrack(newTrack);
-    useCredit();
-    toast.success('🎵 Remix generated!', { duration: 3000 });
-    setLoading(false);
-    setProgress(0);
+    try {
+      // Deteksi BPM audio user
+      const userArrayBuffer = await uploadedFile.arrayBuffer();
+      const userBlob = new Blob([userArrayBuffer]);
+      let userBpm = 120;
+      try {
+        const bpmResult = await (MusicBeatDetector as any)(userBlob);
+        userBpm = bpmResult.tempo;
+      } catch (e) {
+        // fallback jika gagal deteksi
+        userBpm = 120;
+      }
+      // Pilih EDM yang kontras
+      let edmCandidates;
+      if (userBpm > 120) {
+        edmCandidates = edmFilesWithBpm.filter(e => e.bpm < 110);
+      } else {
+        edmCandidates = edmFilesWithBpm.filter(e => e.bpm > 120);
+      }
+      let edmToUse;
+      if (edmCandidates.length > 0) {
+        edmToUse = edmCandidates[Math.floor(Math.random() * edmCandidates.length)];
+      } else {
+        edmToUse = edmFilesWithBpm.reduce((prev, curr) =>
+          Math.abs(curr.bpm - userBpm) > Math.abs(prev.bpm - userBpm) ? curr : prev
+        );
+      }
+      // Load EDM audio
+      const edmResponse = await fetch(edmToUse.file);
+      const edmArrayBuffer = await edmResponse.arrayBuffer();
+      // Mixing seperti sebelumnya
+      const audioCtx = new (window.OfflineAudioContext || (window as any).webkitOfflineAudioContext)(2, 44100 * 180, 44100);
+      const [userBuffer, edmBuffer] = await Promise.all([
+        audioCtx.decodeAudioData(userArrayBuffer.slice(0)),
+        audioCtx.decodeAudioData(edmArrayBuffer.slice(0))
+      ]);
+      const duration = Math.min(userBuffer.duration, edmBuffer.duration, 180);
+      const userSource = audioCtx.createBufferSource();
+      userSource.buffer = userBuffer;
+      const edmSource = audioCtx.createBufferSource();
+      edmSource.buffer = edmBuffer;
+      const userGain = audioCtx.createGain();
+      userGain.gain.value = 0.8;
+      const edmGain = audioCtx.createGain();
+      edmGain.gain.value = 0.32;
+      userGain.gain.setValueAtTime(0, 0);
+      userGain.gain.linearRampToValueAtTime(0.8, 4);
+      userGain.gain.setValueAtTime(0.8, duration - 4);
+      userGain.gain.linearRampToValueAtTime(0, duration);
+      edmGain.gain.setValueAtTime(0, 0);
+      edmGain.gain.linearRampToValueAtTime(0.32, 4);
+      edmGain.gain.setValueAtTime(0.32, duration - 4);
+      edmGain.gain.linearRampToValueAtTime(0, duration);
+      const compressor = audioCtx.createDynamicsCompressor();
+      compressor.threshold.setValueAtTime(-10, 0);
+      compressor.knee.setValueAtTime(20, 0);
+      compressor.ratio.setValueAtTime(8, 0);
+      compressor.attack.setValueAtTime(0.003, 0);
+      compressor.release.setValueAtTime(0.25, 0);
+      userSource.connect(userGain).connect(compressor);
+      edmSource.connect(edmGain).connect(compressor);
+      compressor.connect(audioCtx.destination);
+      userSource.start(0);
+      edmSource.start(0);
+      const mixedBuffer = await audioCtx.startRendering();
+      const wavBlob = bufferToWavBlob(mixedBuffer);
+      const outputUrl = URL.createObjectURL(wavBlob);
+      const newTrack = {
+        id: Date.now().toString(),
+        name: `Remix of: ${uploadedFile.name}`,
+        inputUrl: '',
+        prompt,
+        genre: genreStyle,
+        status: 'completed' as const,
+        createdAt: new Date(),
+        outputUrl,
+        duration: 180,
+        bpm: selectedBPM,
+        style: genreStyle,
+        userId: user.id,
+        userName: user.name,
+        isPublic: true,
+        likes: 0,
+        downloads: 0,
+        effects: selectedEffects,
+        originalFileName: uploadedFile.name
+      };
+      addTrack(newTrack);
+      setGeneratedTrack(newTrack);
+      useCredit();
+      toast.success('🎵 Remix generated!', { duration: 3000 });
+      setLoading(false);
+      setProgress(0);
+    } catch (err) {
+      setLoading(false);
+      setProgress(0);
+      toast.error('Failed to mix audio');
+    }
   };
+
+  // Helper: convert AudioBuffer to WAV Blob
+  function bufferToWavBlob(buffer: AudioBuffer): Blob {
+    // Simple WAV encoding (PCM 16bit)
+    const numOfChan = buffer.numberOfChannels;
+    const length = buffer.length * numOfChan * 2 + 44;
+    const bufferArray = new ArrayBuffer(length);
+    const view = new DataView(bufferArray);
+    // RIFF chunk descriptor
+    writeString(view, 0, 'RIFF');
+    view.setUint32(4, 36 + buffer.length * numOfChan * 2, true);
+    writeString(view, 8, 'WAVE');
+    // FMT sub-chunk
+    writeString(view, 12, 'fmt ');
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true);
+    view.setUint16(22, numOfChan, true);
+    view.setUint32(24, buffer.sampleRate, true);
+    view.setUint32(28, buffer.sampleRate * numOfChan * 2, true);
+    view.setUint16(32, numOfChan * 2, true);
+    view.setUint16(34, 16, true);
+    // data sub-chunk
+    writeString(view, 36, 'data');
+    view.setUint32(40, buffer.length * numOfChan * 2, true);
+    // Write PCM samples
+    let offset = 44;
+    for (let i = 0; i < buffer.length; i++) {
+      for (let ch = 0; ch < numOfChan; ch++) {
+        let sample = buffer.getChannelData(ch)[i];
+        sample = Math.max(-1, Math.min(1, sample));
+        view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7FFF, true);
+        offset += 2;
+      }
+    }
+    return new Blob([bufferArray], { type: 'audio/wav' });
+  }
+  function writeString(view: DataView, offset: number, str: string) {
+    for (let i = 0; i < str.length; i++) {
+      view.setUint8(offset + i, str.charCodeAt(i));
+    }
+  }
 
   // Confetti burst animation (simple SVG burst)
   const ConfettiBurst: React.FC = () => (
@@ -427,7 +561,13 @@ const RemixStudio: React.FC = () => {
         <motion.button
           whileHover={{ scale: 1.02, boxShadow: "0 20px 40px rgba(139, 92, 246, 0.3)" }}
           whileTap={{ scale: 0.98 }}
-          onClick={handleGenerateRemix}
+          onClick={() => {
+            if (user?.credits === 0) {
+              setShowSubModal(true);
+              return;
+            }
+            handleGenerateRemix();
+          }}
           disabled={!uploadedFile || !prompt.trim() || !user || user.credits <= 0 || isLoading}
           className="relative w-full max-w-md bg-gradient-to-r from-purple-500 to-purple-600 text-white font-bold py-4 px-8 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed overflow-hidden"
         >
@@ -631,29 +771,85 @@ const RemixStudio: React.FC = () => {
                   <span className="flex-1 text-white">{sample.title}</span>
                   <button onClick={() => setPreviewUrl(sample.url)} className="text-cyan-400 underline ml-2">Preview</button>
                   <button
-                    onClick={() => {
-                      setGeneratedTrack({
-                        id: Date.now().toString(),
-                        name: `AIVA Remix - ${sample.title}`,
-                        inputUrl: '',
-                        prompt: prompt,
-                        genre: genreStyle,
-                        status: 'completed',
-                        createdAt: new Date(),
-                        outputUrl: sample.url,
-                        duration: 180,
-                        bpm: selectedBPM,
-                        style: genreStyle,
-                        userId: user?.id || '1',
-                        userName: user?.name || 'AIVA',
-                        isPublic: true,
-                        likes: 0,
-                        downloads: 0,
-                        effects: selectedEffects,
-                        originalFileName: uploadedFile?.name || sample.title
-                      });
-                      setShowAivaModal(false);
-                      setPreviewUrl(null);
+                    onClick={async () => {
+                      setAivaActive(true);
+                      setAivaBadge(true);
+                      // Mixing dengan preset EDM effect (misal filter sweep)
+                      if (!uploadedFile) return;
+                      setLoading(true);
+                      setProgress(0);
+                      const edmEffectFile = '/edm/sweep1.wav';
+                      try {
+                        const userArrayBuffer = await uploadedFile.arrayBuffer();
+                        const edmResponse = await fetch(edmEffectFile);
+                        const edmArrayBuffer = await edmResponse.arrayBuffer();
+                        const audioCtx = new (window.OfflineAudioContext || (window as any).webkitOfflineAudioContext)(2, 44100 * 180, 44100);
+                        const [userBuffer, edmBuffer] = await Promise.all([
+                          audioCtx.decodeAudioData(userArrayBuffer.slice(0)),
+                          audioCtx.decodeAudioData(edmArrayBuffer.slice(0))
+                        ]);
+                        const duration = Math.min(userBuffer.duration, edmBuffer.duration, 180);
+                        const userSource = audioCtx.createBufferSource();
+                        userSource.buffer = userBuffer;
+                        const edmSource = audioCtx.createBufferSource();
+                        edmSource.buffer = edmBuffer;
+                        // Gain
+                        const userGain = audioCtx.createGain();
+                        userGain.gain.value = 0.7;
+                        const edmGain = audioCtx.createGain();
+                        edmGain.gain.value = 0.5;
+                        // Filter effect
+                        const filter = audioCtx.createBiquadFilter();
+                        filter.type = 'highpass';
+                        filter.frequency.setValueAtTime(400, 0);
+                        filter.frequency.linearRampToValueAtTime(80, duration);
+                        // Reverb (simple)
+                        const convolver = audioCtx.createConvolver();
+                        const irBuffer = audioCtx.createBuffer(2, audioCtx.sampleRate * 2, audioCtx.sampleRate);
+                        for (let c = 0; c < 2; c++) {
+                          const channel = irBuffer.getChannelData(c);
+                          for (let i = 0; i < irBuffer.length; i++) {
+                            channel[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / irBuffer.length, 2.5);
+                          }
+                        }
+                        convolver.buffer = irBuffer;
+                        // Routing: user → gain → filter → reverb → destination
+                        userSource.connect(userGain).connect(filter).connect(convolver).connect(audioCtx.destination);
+                        edmSource.connect(edmGain).connect(audioCtx.destination);
+                        userSource.start(0);
+                        edmSource.start(0);
+                        const mixedBuffer = await audioCtx.startRendering();
+                        const wavBlob = bufferToWavBlob(mixedBuffer);
+                        const outputUrl = URL.createObjectURL(wavBlob);
+                        setGeneratedTrack({
+                          id: Date.now().toString(),
+                          name: `AIVA AI Remix - ${uploadedFile.name}`,
+                          inputUrl: '',
+                          prompt,
+                          genre: genreStyle,
+                          status: 'completed',
+                          createdAt: new Date(),
+                          outputUrl,
+                          duration: 180,
+                          bpm: selectedBPM,
+                          style: genreStyle,
+                          userId: user?.id || '1',
+                          userName: user?.name || 'AIVA',
+                          isPublic: true,
+                          likes: 0,
+                          downloads: 0,
+                          effects: selectedEffects,
+                          originalFileName: uploadedFile?.name || 'AIVA AI Remix'
+                        });
+                        setShowAivaModal(false);
+                        setPreviewUrl(null);
+                        setLoading(false);
+                        setTimeout(() => setAivaBadge(false), 8000);
+                      } catch (e) {
+                        setLoading(false);
+                        setAivaActive(false);
+                        toast.error('AIVA remix failed');
+                      }
                     }}
                     className="ml-2 bg-cyan-500 text-white px-3 py-1 rounded text-xs hover:bg-cyan-600"
                   >
@@ -766,6 +962,41 @@ const RemixStudio: React.FC = () => {
               {remixResult.fxAudio && <AudioPlayer src={remixResult.fxAudio} title="Genre FX" />}
             </div>
           </motion.div>
+        </div>
+      )}
+
+      {/* Mix with Random EDM Button */}
+      {/* Removed as per edit hint */}
+
+      {mixedUrl && (
+        <div className="mt-6">
+          <AudioPlayer src={mixedUrl} title="Your Mixed Track" className="w-full" />
+          <a
+            href={mixedUrl}
+            download="mixed-remix.wav"
+            className="inline-block mt-3 px-4 py-2 bg-cyan-600 text-white rounded-lg shadow hover:bg-cyan-700 transition-all"
+          >
+            Download Mixed Audio
+          </a>
+        </div>
+      )}
+
+      {aivaBadge && (
+        <div className="flex items-center gap-2 mb-2 animate-pulse">
+          <Sparkles className="w-6 h-6 text-cyan-400 animate-spin-slow" />
+          <span className="bg-gradient-to-r from-cyan-400 to-purple-500 text-white px-3 py-1 rounded-full font-bold shadow-lg">AIVA AI Active</span>
+        </div>
+      )}
+
+      {/* Pop-up subscription */}
+      {showSubModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+          <div className="bg-dark-800 rounded-xl p-8 max-w-md w-full relative border border-cyan-500">
+            <button className="absolute top-2 right-2 text-cyan-400" onClick={() => setShowSubModal(false)}>&times;</button>
+            <h2 className="text-xl font-bold mb-4 text-cyan-400 flex items-center">Upgrade to Pro</h2>
+            <p className="text-white mb-4">Your free credits are used up. Subscribe to unlock unlimited remixes and premium features!</p>
+            <button className="w-full py-3 rounded-lg bg-gradient-to-r from-cyan-400 to-purple-500 text-white font-bold text-lg shadow-lg hover:bg-cyan-300 transition-all" onClick={() => window.location.hash = '#subscription'}>Go to Subscription</button>
+          </div>
         </div>
       )}
     </div>

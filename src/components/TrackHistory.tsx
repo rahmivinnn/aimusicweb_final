@@ -86,169 +86,57 @@ const TrackHistory: React.FC = () => {
   return (
     <div className="max-w-5xl mx-auto p-6">
       <h1 className="text-4xl font-bold text-white mb-6">Remix History</h1>
-      <div className="space-y-4">
-        {tracks.map((track, index) => (
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+        {tracks.map((track, idx) => (
           <motion.div
             key={track.id}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            transition={{ delay: index * 0.05 }}
-            className="group bg-gradient-to-br from-dark-800 to-dark-850 rounded-xl p-6 border border-dark-700 hover:border-purple-500/50 transition-all duration-300 shadow-lg hover:shadow-xl"
+            initial={{ opacity: 0, y: 40 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.2 }}
+            transition={{ duration: 0.5, delay: idx * 0.08, type: 'spring', stiffness: 80 }}
+            className="remix-card bg-gradient-to-br from-[#1a2740]/80 via-[#232b3a]/90 to-[#1a1f2c]/90 rounded-xl shadow-xl p-4 transition-all duration-300 hover:shadow-2xl hover:-translate-y-2 hover:scale-[1.035] hover:ring-2 hover:ring-cyan-400/60 hover:border-cyan-400/40 border border-white/10 backdrop-blur-md bg-opacity-80 group flex flex-col"
+            style={{ boxShadow: '0 4px 32px 0 rgba(0,255,255,0.08)' }}
           >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4 flex-1">
-                {/* Track Artwork */}
-                <div className="relative">
-                  <motion.div
-                    whileHover={{ scale: 1.05 }}
-                    className="w-20 h-20 rounded-lg flex items-center justify-center shadow-lg overflow-hidden album-art-premium-glow"
-                  >
-                    {track.albumArt ? (
-                      <img 
-                        src={track.albumArt} 
-                        alt={`${track.name} album art`}
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          // Fallback to Music icon if image fails to load
-                          const target = e.target as HTMLImageElement;
-                          target.style.display = 'none';
-                          target.nextElementSibling?.classList.remove('hidden');
-                        }}
-                      />
-                    ) : null}
-                    <div className={`w-full h-full bg-gradient-to-r from-purple-500 to-purple-600 flex items-center justify-center ${track.albumArt ? 'hidden' : ''}`}>
-                      <Music className="w-10 h-10 text-white" />
-                    </div>
-                  </motion.div>
-                  
-                  {track.status === 'processing' && (
-                    <motion.div
-                      animate={{ rotate: 360 }}
-                      transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-                      className="absolute inset-0 border-2 border-purple-400 border-t-transparent rounded-lg"
-                    />
-                  )}
-
-                  {track.status === 'completed' && (
-                    <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
-                      <Play className="w-3 h-3 text-white" />
-                    </div>
-                  )}
-                </div>
-                
-                {/* Track Info */}
-                <div className="flex-1 min-w-0">
-                  <h3 className="text-xl font-semibold text-white mb-1 truncate group-hover:text-purple-400 transition-colors">
-                    {track.name}
-                  </h3>
-                  <p className="text-dark-400 text-sm mb-2 line-clamp-2">{track.prompt}</p>
-                  
-                  <div className="flex items-center space-x-4 text-xs text-dark-500">
-                    <span className="flex items-center space-x-1">
-                      <Clock className="w-3 h-3" />
-                      <span>{track.createdAt.toLocaleDateString()}</span>
-                    </span>
-                    <span>Genre: {track.genre}</span>
-                    {track.bpm && <span>BPM: {track.bpm}</span>}
-                    {track.duration && (
-                      <span>Duration: {Math.floor(track.duration / 60)}:{(track.duration % 60).toString().padStart(2, '0')}</span>
-                    )}
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      track.status === 'completed' ? 'bg-green-500/20 text-green-400' :
-                      track.status === 'processing' ? 'bg-yellow-500/20 text-yellow-400' :
-                      'bg-red-500/20 text-red-400'
-                    }`}>
-                      {track.status}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex items-center space-x-2">
-                <motion.button
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.9 }}
-                  className="p-2 text-dark-400 hover:text-red-400 transition-colors"
-                >
-                  <Heart className="w-5 h-5" />
-                </motion.button>
-                
-                <motion.button
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.9 }}
-                  className="p-2 text-dark-400 hover:text-purple-400 transition-colors"
-                >
-                  <Share2 className="w-5 h-5" />
-                </motion.button>
-                
-                <motion.button
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.9 }}
-                  onClick={() => handleDownload(track.id)}
-                  className="p-2 text-dark-400 hover:text-green-400 transition-colors"
-                  disabled={track.status !== 'completed'}
-                >
-                  <Download className="w-5 h-5" />
-                </motion.button>
-                
-                <motion.button
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.9 }}
-                  className="p-2 text-dark-400 hover:text-white transition-colors relative"
-                  onClick={() => setOpenMenuId(openMenuId === track.id ? null : track.id)}
-                >
-                  <MoreVertical className="w-5 h-5" />
-                  {openMenuId === track.id && (
-                    <div className="absolute right-0 mt-2 w-40 bg-dark-800 border border-dark-700 rounded-lg shadow-xl z-50 animate-fade-in">
-                      <button
-                        className="flex items-center w-full px-4 py-2 text-sm text-white hover:bg-dark-700"
-                        onClick={() => { handleShare(track); setOpenMenuId(null); }}
-                      >
-                        <Share2 className="w-4 h-4 mr-2" /> Share
-                      </button>
-                      <button
-                        className="flex items-center w-full px-4 py-2 text-sm text-white hover:bg-dark-700"
-                        onClick={() => { handleDownload(track.id); setOpenMenuId(null); }}
-                        disabled={track.status !== 'completed'}
-                      >
-                        <Download className="w-4 h-4 mr-2" /> Download
-                      </button>
-                      <button
-                        className="flex items-center w-full px-4 py-2 text-sm text-white hover:bg-dark-700"
-                        onClick={() => { handleLike(track.id); setOpenMenuId(null); }}
-                      >
-                        <Heart className="w-4 h-4 mr-2" /> Love
-                      </button>
-                      <button
-                        className="flex items-center w-full px-4 py-2 text-sm text-white hover:bg-dark-700"
-                        onClick={() => { toast.success('More action!'); setOpenMenuId(null); }}
-                      >
-                        <MoreVertical className="w-4 h-4 mr-2" /> More
-                      </button>
-                    </div>
-                  )}
-                </motion.button>
+            <div className="relative w-full aspect-[16/9] rounded-lg overflow-hidden mb-3">
+              <img
+                src={track.albumArt || '/default-thumbnail.jpg'}
+                onError={e => { e.currentTarget.onerror = null; e.currentTarget.src = '/default-thumbnail.jpg'; }}
+                alt={track.name}
+                className="w-full h-full object-cover aspect-video transition-all duration-300 hover:brightness-110 group-hover:scale-105 group-hover:shadow-[0_0_24px_#0ff5]"
+              />
+              <button
+                className="absolute top-2 right-2 z-10 bg-black/60 rounded-full p-1 text-white hover:text-pink-400 transition-all hover:scale-125 group-hover:animate-bounce"
+                aria-label="Favorite"
+                tabIndex={0}
+                onClick={() => handleLike(track.id)}
+              >
+                <span role="img" aria-label="love" className="text-xl transition-all duration-200">❤️</span>
+              </button>
+            </div>
+            <div className="w-full flex flex-col items-start mb-2">
+              <h3 className="text-white font-semibold text-lg break-words leading-tight mb-1 group-hover:text-cyan-300 transition-colors" style={{wordBreak:'break-word',overflowWrap:'break-word'}}>{track.name}</h3>
+              <span className="text-cyan-300 text-xs font-medium mb-1">{track.genre}</span>
+              <div className="flex items-center gap-2 mt-1">
+                <span className="text-xs text-white/80">{track.userName}</span>
+                <span className="text-xs text-dark-400">{track.createdAt.toLocaleDateString()}</span>
               </div>
             </div>
-
-            {/* Audio Player */}
-            {track.status === 'completed' && track.outputUrl && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                className="mt-4 pt-4 border-t border-dark-700"
-              >
-                <AudioPlayer
-                  src={track.outputUrl}
-                  title={track.name}
-                  isPlaying={currentlyPlaying === track.id}
-                  onPlayPause={(playing) => handlePlayPause(track.id, playing)}
-                  maxDuration={track.duration}
-                />
-              </motion.div>
-            )}
+            <div className="flex flex-col gap-2 mt-auto w-full">
+              <div className="flex items-center gap-4 w-full">
+                {track.status === 'completed' && track.outputUrl && (
+                  <AudioPlayer
+                    src={track.outputUrl}
+                    title={track.name}
+                    isPlaying={currentlyPlaying === track.id}
+                    onPlayPause={(playing) => handlePlayPause(track.id, playing)}
+                    maxDuration={track.duration}
+                    className="w-full"
+                    buttonClassName="w-12 h-12 hover:scale-110 transition-transform"
+                    progressBarClassName="shadow-[0_0_10px_#0ff]"
+                  />
+                )}
+              </div>
+            </div>
           </motion.div>
         ))}
       </div>
