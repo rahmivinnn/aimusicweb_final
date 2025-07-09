@@ -89,8 +89,8 @@ const Subscription: React.FC = () => {
   };
 
   return (
-    <div className="max-w-7xl mx-auto p-6 space-y-8">
-      {/* Animated gradient background subscription */}
+    <div className="max-w-7xl mx-auto p-6 space-y-8 relative">
+      {/* Animated gradient background */}
       <motion.div
         className="fixed inset-0 -z-10"
         initial={{ opacity: 0 }}
@@ -101,7 +101,7 @@ const Subscription: React.FC = () => {
           animation: 'gradientMove 8s ease-in-out infinite'
         }}
       />
-      {/* Particle layer subscription */}
+      {/* Particle layer */}
       <div className="absolute inset-0 pointer-events-none z-0">
         {Array.from({ length: 16 }).map((_, i) => (
           <motion.div
