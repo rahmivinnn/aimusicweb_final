@@ -11,7 +11,7 @@ import toast from 'react-hot-toast';
 import { useEffect } from 'react';
 import { PremiumAudioProcessor } from '../utils/PremiumAudioProcessor';
 import { useRef } from 'react';
-import MusicBeatDetector from 'music-beat-detector';
+import { detect as detectBpm } from 'web-audio-beat-detector';
 
 const RemixStudio: React.FC = () => {
   const { user, addTrack, setLoading, isLoading, useCredit } = useStore();
@@ -145,17 +145,20 @@ const RemixStudio: React.FC = () => {
 
   const handleFileUpload = async (file: File) => {
     setUploadedFile(file);
-    // Auto-detect BPM and beats
     try {
+      const ctx = new window.AudioContext();
       const arrayBuffer = await file.arrayBuffer();
-      const audioBlob = new Blob([arrayBuffer]);
-      const bpmResult = await MusicBeatDetector(audioBlob);
-      setDetectedBpm(bpmResult.tempo);
-      setBeatMarkers(bpmResult.beats);
-      setSelectedBPM(Math.round(bpmResult.tempo));
+      const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
+      let bpm = 120;
+      try {
+        bpm = await detectBpm(audioBuffer);
+      } catch (e) {
+        // fallback to default
+      }
+      setDetectedBpm(bpm);
+      setSelectedBPM(Math.round(bpm));
     } catch (error) {
       setDetectedBpm(120);
-      setBeatMarkers([]);
       setSelectedBPM(120);
     }
   };

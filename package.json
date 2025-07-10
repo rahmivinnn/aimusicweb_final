@@ -28,6 +28,7 @@
     "uuid": "^11.1.0",
     "wavesurfer.js": "^7.7.3",
     "web-audio-api": "^0.2.2",
+    "web-audio-beat-detector": "^8.2.29",
     "zustand": "^4.4.7"
   },
   "devDependencies": {
