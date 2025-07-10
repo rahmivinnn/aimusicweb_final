@@ -817,8 +817,28 @@ const RemixStudio: React.FC = () => {
         className="bg-gradient-to-br from-dark-800 to-dark-850 rounded-xl p-6 border border-cyan-700 shadow-xl mt-6"
       >
         <h3 className="text-lg font-bold text-cyan-400 mb-2">Remix Showcase</h3>
-        <p className="text-dark-200 mb-2">Here's how a pop song sounds when remixed with the selected EDM sample:</p>
-        <AudioPlayer src={selectedEdm} title="EDM Sample Preview" />
+        <p className="text-dark-200 mb-2">Check out our latest EDM samples for remixing:</p>
+        <div className="flex flex-col gap-3">
+          {['edm/chill2.mp3', 'edm/chill3.mp3', 'edm/chill4.mp3'].map((file, idx) => (
+            <div key={file} className="flex items-center gap-2">
+              <span className="text-white font-medium">Sample {idx + 1}</span>
+              <button
+                type="button"
+                onClick={() => {
+                  setPreviewingEdm(file);
+                  if (audioPreviewRef.current) {
+                    audioPreviewRef.current.src = file;
+                    audioPreviewRef.current.play();
+                  }
+                }}
+                className="px-3 py-1 bg-cyan-700 text-white rounded hover:bg-cyan-600"
+              >
+                <Play className="inline w-4 h-4 mr-1" /> Preview
+              </button>
+            </div>
+          ))}
+          <audio ref={audioPreviewRef} style={{ display: 'none' }} onEnded={() => setPreviewingEdm(null)} />
+        </div>
       </motion.div>
 
       {/* Premium Upgrade Card */}
@@ -926,8 +946,18 @@ const RemixStudio: React.FC = () => {
                         // Gain
                         const userGain = audioCtx.createGain();
                         userGain.gain.value = 0.7;
+                        // When mixing EDM, make it more powerful and crisp
                         const edmGain = audioCtx.createGain();
-                        edmGain.gain.value = 0.5;
+                        edmGain.gain.value = 0.18; // Louder EDM, but not overpowering
+                        // Add a gentle high-shelf boost for clarity
+                        const highShelf = audioCtx.createBiquadFilter();
+                        highShelf.type = 'highshelf';
+                        highShelf.frequency.value = 7000;
+                        highShelf.gain.value = 2.5;
+                        // Connect: edmSource -> edmGain -> highShelf -> destination
+                        edmSource.connect(edmGain);
+                        edmGain.connect(highShelf);
+                        highShelf.connect(audioCtx.destination);
                         // Filter effect
                         const filter = audioCtx.createBiquadFilter();
                         filter.type = 'highpass';
@@ -945,7 +975,7 @@ const RemixStudio: React.FC = () => {
                         convolver.buffer = irBuffer;
                         // Routing: user → gain → filter → reverb → destination
                         userSource.connect(userGain).connect(filter).connect(convolver).connect(audioCtx.destination);
-                        edmSource.connect(edmGain).connect(audioCtx.destination);
+                        edmSource.connect(audioCtx.destination);
                         userSource.start(0);
                         edmSource.start(edmStartTime);
                         const mixedBuffer = await audioCtx.startRendering();
