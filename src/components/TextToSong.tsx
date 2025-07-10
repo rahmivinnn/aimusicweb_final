@@ -46,58 +46,63 @@ const TextToSong: React.FC = () => {
 
   const vokalFile = '/new/sample.mp3';
 
-  // Smart Prompt Examples
+  // Smart Prompt Examples - EDM Focus
   const smartPrompts = [
-    "A dreamy pop ballad with lush synths and soft vocals",
-    "Energetic EDM drop with futuristic sounds",
-    "Chill lo-fi beat for studying",
-    "Upbeat pop song with catchy hooks",
-    "Dark trap beat with heavy 808s",
-    "Ambient soundscape with organic textures",
-    "Classic rock anthem with electric guitars",
-    "Melancholic piano ballad",
-    "Funky disco groove with retro synths",
-    "Trance anthem with uplifting melodies",
-    "DnB track with fast-paced drums and glitch FX",
-    "Indie rock with analog textures",
-    "Soft acoustic folk song",
-    "Jazz lounge with smooth saxophone",
-    "Epic cinematic score with strings",
-    "Happy tropical house with marimba",
-    "Sad pop with emotional vocals",
-    "Aggressive dubstep drop",
-    "Dreamy synthwave with 80s vibes",
-    "Minimal techno with deep bass",
-    "Lo-fi hip hop with vinyl crackle",
-    "Orchestral piece with dramatic build-up",
-    "Reggae with laid-back groove",
-    "Latin pop with rhythmic percussion",
-    "Future bass with vocal chops",
-    "Trap with chopped vocal glitches",
-    "House with sidechained pads",
-    "Trance with arpeggiated synths",
-    "DnB with stutter FX",
-    "Ambient with lush reverbs",
-    "Rock with reverse delays",
-    "Indie with vinyl crackle",
-    "Pop with airy transitions",
-    "EDM with punchy risers",
-    "Chillstep with soft pads",
-    "Synthpop with catchy melodies",
-    "Folk with organic instruments",
-    "Jazz with improvisational solos",
-    "Classical with grand piano",
-    "Electro swing with brass",
-    "Happy pop with claps",
-    "Sad ballad with strings",
-    "Energetic dance with build-ups",
-    "Moody trap with dark synths",
-    "Uplifting trance with long risers",
-    "Experimental electronic with glitch",
-    "Cinematic with epic drums",
-    "Lo-fi chillhop with soft keys",
-    "Funky groove with slap bass",
-    "Ambient pop with dreamy textures"
+    "Heavy EDM drop with jedag-jedug bass and aggressive synths",
+    "Futuristic EDM anthem with pounding kicks and laser effects",
+    "Epic EDM build-up with massive risers and explosive drops",
+    "Dark EDM track with deep sub-bass and industrial sounds",
+    "Uplifting EDM with euphoric melodies and powerful bass",
+    "Progressive EDM with evolving synths and punchy drums",
+    "Tropical EDM with summer vibes and heavy bass drops",
+    "Melodic EDM with emotional leads and thumping kicks",
+    "Hardstyle EDM with distorted kicks and aggressive energy",
+    "Trance EDM with long builds and massive breakdowns",
+    "House EDM with groovy basslines and club-ready beats",
+    "Dubstep EDM with wobbly bass and heavy drops",
+    "Future bass EDM with vocal chops and melodic drops",
+    "Trap EDM with 808s and hi-hat rolls",
+    "Electro EDM with robotic sounds and heavy kicks",
+    "Big room EDM with festival energy and massive drops",
+    "Progressive house EDM with smooth transitions",
+    "Tech house EDM with minimal beats and deep bass",
+    "Bass house EDM with heavy low-end and groovy rhythms",
+    "Melodic dubstep EDM with emotional drops",
+    "Hard dance EDM with aggressive kicks and energy",
+    "Eurodance EDM with classic vibes and modern production",
+    "Breaks EDM with broken beats and heavy bass",
+    "Drumstep EDM with fast drums and melodic elements",
+    "Glitch hop EDM with chopped beats and heavy bass",
+    "Neurofunk EDM with complex rhythms and deep bass",
+    "Liquid DnB EDM with smooth flows and heavy drops",
+    "Jump up EDM with bouncy bass and energetic beats",
+    "Crossbreed EDM with mixed genres and heavy energy",
+    "Gabber EDM with extreme kicks and aggressive style",
+    "Happy hardcore EDM with uplifting melodies",
+    "UK hardcore EDM with British energy and heavy bass",
+    "Freeform EDM with experimental sounds and heavy drops",
+    "Speedcore EDM with ultra-fast beats and extreme energy",
+    "Extratone EDM with maximum speed and heavy distortion",
+    "Industrial EDM with mechanical sounds and heavy bass",
+    "Cyberpunk EDM with futuristic vibes and aggressive drops",
+    "Neon EDM with bright synths and heavy bass",
+    "Retrowave EDM with 80s vibes and modern production",
+    "Synthwave EDM with analog sounds and heavy kicks",
+    "Vaporwave EDM with dreamy textures and heavy bass",
+    "Chillwave EDM with relaxed vibes and deep bass",
+    "Future garage EDM with atmospheric sounds and heavy drops",
+    "UK garage EDM with British style and heavy bass",
+    "Speed garage EDM with fast beats and heavy energy",
+    "2-step EDM with broken rhythms and heavy bass",
+    "Grime EDM with urban vibes and heavy drops",
+    "Dub EDM with reggae influence and heavy bass",
+    "Jungle EDM with breakbeats and heavy sub-bass",
+    "Ragga jungle EDM with reggae vocals and heavy energy",
+    "Drum and bass EDM with fast drums and heavy bass",
+    "Liquid funk EDM with smooth flows and heavy drops",
+    "Neurofunk EDM with complex rhythms and deep bass",
+    "Jump up EDM with bouncy bass and energetic beats",
+    "Crossbreed EDM with mixed genres and heavy energy"
   ];
 
   // Pengecekan otomatis file EDM dan vokal di awal
@@ -426,7 +431,7 @@ const TextToSong: React.FC = () => {
               <textarea
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
-                placeholder="A futuristic cyberpunk theme with heavy bass and electronic elements..."
+                placeholder="Heavy EDM drop with jedag-jedug bass and aggressive synths..."
                 className="w-full bg-dark-700 border border-dark-600 rounded-lg p-4 text-white focus:ring-2 focus:ring-cyan-500 focus:border-transparent min-h-[120px] pr-12"
                 disabled={isLoading}
               />
@@ -449,34 +454,18 @@ const TextToSong: React.FC = () => {
             </div>
           </div>
 
-          {/* Settings */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-medium mb-2 text-white">Genre</label>
-              <select
-                value={genre}
-                onChange={() => {}}
-                className="w-full bg-dark-700 border border-dark-600 rounded-lg p-3 text-white focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-                disabled
-              >
-                <option value="EDM">EDM</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-2 text-white">Mood</label>
-              <select
-                value={mood}
-                onChange={(e) => setMood(e.target.value)}
-                className="w-full bg-dark-700 border border-dark-600 rounded-lg p-3 text-white focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-                disabled={isLoading}
-              >
-                <option value="Energetic">Energetic</option>
-                <option value="Chill">Chill</option>
-                <option value="Happy">Happy</option>
-                <option value="Melancholic">Melancholic</option>
-                <option value="Dramatic">Dramatic</option>
-              </select>
+          {/* EDM Only Info */}
+          <div className="bg-gradient-to-r from-cyan-900/50 to-blue-900/50 border border-cyan-500/30 rounded-lg p-4">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-cyan-500/20 rounded-full flex items-center justify-center">
+                <svg className="w-6 h-6 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-white font-semibold">Premium EDM Generation</h3>
+                <p className="text-cyan-200 text-sm">Generate professional EDM tracks with jedag-jedug bass and premium mastering</p>
+              </div>
             </div>
           </div>
 
@@ -503,8 +492,8 @@ const TextToSong: React.FC = () => {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
               <div>
-                <p className="font-medium text-white mb-1">How it works</p>
-                <p className="text-sm">Describe the song you want to create, select a genre and mood, then click "Generate Track". The AI will create a unique song based on your description.</p>
+                <p className="font-medium text-white mb-1">Premium EDM Generation</p>
+                <p className="text-sm">Describe your EDM track with jedag-jedug bass, aggressive synths, and heavy drops. Our AI creates professional EDM with premium mastering.</p>
               </div>
             </div>
           </div>
@@ -521,7 +510,7 @@ const TextToSong: React.FC = () => {
             disabled={user?.credits === 0 || isLoading}
             className={`w-full py-3 rounded-lg bg-cyan-400 text-white font-bold text-lg shadow-lg hover:bg-cyan-300 transition-all ${user?.credits === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
-            {isLoading ? 'Generating...' : 'Generate Song'}
+            {isLoading ? 'Generating Premium EDM...' : 'Generate Premium EDM Track'}
           </button>
           {missingFiles.length > 0 && (
             <div className="text-red-400 text-sm mb-2">

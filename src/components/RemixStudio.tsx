@@ -218,7 +218,7 @@ const RemixStudio: React.FC = () => {
       setProgress(40);
       
       // Generate premium EDM effects instead of loading files
-      const premiumEffects = ['premium-riser', 'premium-drop', 'premium-sweep'];
+      const premiumEffects = ['premium-riser', 'premium-drop', 'premium-sweep', 'premium-jedag'];
       const chosenEffects = premiumEffects.sort(() => 0.5 - Math.random()).slice(0, 2);
       const effectBuffers: AudioBuffer[] = [];
       

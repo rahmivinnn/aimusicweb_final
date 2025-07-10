@@ -12,34 +12,50 @@ export class PremiumAudioProcessor {
   createPremiumEQ(): BiquadFilterNode[] {
     const eqChain: BiquadFilterNode[] = [];
     
-    // High-pass filter to remove mud (below 80Hz)
+    // High-pass filter to remove mud (below 60Hz)
     const highPass = this.audioContext.createBiquadFilter();
     highPass.type = 'highpass';
-    highPass.frequency.value = 80;
+    highPass.frequency.value = 60;
     highPass.Q.value = 0.7;
     eqChain.push(highPass);
+    
+    // Bass boost for jedag-jedug (80-120Hz)
+    const bassBoost = this.audioContext.createBiquadFilter();
+    bassBoost.type = 'peaking';
+    bassBoost.frequency.value = 100;
+    bassBoost.gain.value = 4.0; // Lebih kuat untuk jedag-jedug
+    bassBoost.Q.value = 1.2;
+    eqChain.push(bassBoost);
     
     // Low-mid boost for warmth (200-400Hz)
     const lowMidBoost = this.audioContext.createBiquadFilter();
     lowMidBoost.type = 'peaking';
     lowMidBoost.frequency.value = 250;
-    lowMidBoost.gain.value = 2.5;
+    lowMidBoost.gain.value = 3.0;
     lowMidBoost.Q.value = 1.0;
     eqChain.push(lowMidBoost);
     
-    // Cut harsh frequencies (2-5kHz) that cause "cempreng"
+    // Cut harsh frequencies (2-5kHz) that cause "siul-siul"
     const harshCut = this.audioContext.createBiquadFilter();
     harshCut.type = 'peaking';
     harshCut.frequency.value = 3500;
-    harshCut.gain.value = -3.0;
-    harshCut.Q.value = 1.5;
+    harshCut.gain.value = -5.0; // Lebih agresif cut
+    harshCut.Q.value = 2.0;
     eqChain.push(harshCut);
     
-    // High-shelf for air (above 8kHz)
+    // Cut more harsh frequencies (6-8kHz)
+    const harshCut2 = this.audioContext.createBiquadFilter();
+    harshCut2.type = 'peaking';
+    harshCut2.frequency.value = 7000;
+    harshCut2.gain.value = -4.0;
+    harshCut2.Q.value = 1.5;
+    eqChain.push(harshCut2);
+    
+    // High-shelf for air (above 10kHz) - lebih rendah
     const airBoost = this.audioContext.createBiquadFilter();
     airBoost.type = 'highshelf';
-    airBoost.frequency.value = 8000;
-    airBoost.gain.value = 1.5;
+    airBoost.frequency.value = 10000;
+    airBoost.gain.value = 0.5; // Lebih rendah untuk hindari siul-siul
     eqChain.push(airBoost);
     
     return eqChain;
@@ -181,36 +197,60 @@ export class PremiumAudioProcessor {
         }
         break;
         
-      case 'premium-drop':
-        // Premium bass drop with sub-bass and harmonics
-        for (let i = 0; i < buffer.length; i++) {
-          const t = i / sampleRate;
-          const freq = 45 + 25 * Math.exp(-t * 8);
-          const amplitude = 0.35 * Math.exp(-t * 2.5);
-          
-          // Sub-bass + harmonics
-          const subBass = Math.sin(2 * Math.PI * freq * t);
-          const midBass = 0.4 * Math.sin(2 * Math.PI * freq * 2 * t);
-          const highBass = 0.2 * Math.sin(2 * Math.PI * freq * 4 * t);
-          
-          leftChannel[i] = amplitude * (subBass + midBass + highBass);
-          rightChannel[i] = amplitude * (subBass + midBass + highBass);
-        }
-        break;
+             case 'premium-drop':
+         // Premium jedag-jedug bass drop with heavy sub-bass and harmonics
+         for (let i = 0; i < buffer.length; i++) {
+           const t = i / sampleRate;
+           const freq = 40 + 30 * Math.exp(-t * 6); // Lower frequency for more punch
+           const amplitude = 0.45 * Math.exp(-t * 2.0); // Higher amplitude
+           
+           // Heavy sub-bass + harmonics for jedag-jedug
+           const subBass = Math.sin(2 * Math.PI * freq * t);
+           const midBass = 0.6 * Math.sin(2 * Math.PI * freq * 2 * t); // Stronger mid
+           const highBass = 0.3 * Math.sin(2 * Math.PI * freq * 4 * t);
+           const ultraBass = 0.8 * Math.sin(2 * Math.PI * freq * 0.5 * t); // Ultra low
+           
+           // Add distortion for more aggressive sound
+           const distorted = Math.tanh((subBass + midBass + highBass + ultraBass) * 1.5);
+           
+           leftChannel[i] = amplitude * distorted;
+           rightChannel[i] = amplitude * distorted;
+         }
+         break;
         
-      case 'premium-sweep':
-        // Premium filter sweep with resonance
-        for (let i = 0; i < buffer.length; i++) {
-          const t = i / sampleRate;
-          const freq = 600 + 300 * (t / duration);
-          const amplitude = 0.22 * Math.exp(-t * 2.2);
-          
-          // Add resonance and stereo movement
-          const resonance = 0.1 * Math.sin(2 * Math.PI * freq * 0.5 * t);
-          leftChannel[i] = amplitude * (Math.sin(2 * Math.PI * freq * t) + resonance);
-          rightChannel[i] = amplitude * (Math.sin(2 * Math.PI * freq * t + 0.1) + resonance * 0.8);
-        }
-        break;
+             case 'premium-sweep':
+         // Premium filter sweep with resonance
+         for (let i = 0; i < buffer.length; i++) {
+           const t = i / sampleRate;
+           const freq = 600 + 300 * (t / duration);
+           const amplitude = 0.22 * Math.exp(-t * 2.2);
+           
+           // Add resonance and stereo movement
+           const resonance = 0.1 * Math.sin(2 * Math.PI * freq * 0.5 * t);
+           leftChannel[i] = amplitude * (Math.sin(2 * Math.PI * freq * t) + resonance);
+           rightChannel[i] = amplitude * (Math.sin(2 * Math.PI * freq * t + 0.1) + resonance * 0.8);
+         }
+         break;
+         
+       case 'premium-jedag':
+         // Premium jedag-jedug effect with heavy bass
+         for (let i = 0; i < buffer.length; i++) {
+           const t = i / sampleRate;
+           const freq = 50 + 20 * Math.sin(t * 4); // Pulsing bass
+           const amplitude = 0.5 * Math.exp(-t * 1.8);
+           
+           // Heavy bass with distortion
+           const bass = Math.sin(2 * Math.PI * freq * t);
+           const subBass = 0.7 * Math.sin(2 * Math.PI * freq * 0.5 * t);
+           const midBass = 0.5 * Math.sin(2 * Math.PI * freq * 2 * t);
+           
+           // Add distortion for aggressive jedag-jedug
+           const distorted = Math.tanh((bass + subBass + midBass) * 2.0);
+           
+           leftChannel[i] = amplitude * distorted;
+           rightChannel[i] = amplitude * distorted;
+         }
+         break;
         
       default:
         // Premium white noise with filtering
