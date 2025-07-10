@@ -545,32 +545,29 @@ const RemixStudio: React.FC = () => {
         className="bg-gradient-to-br from-dark-800 to-dark-850 rounded-xl p-6 border border-dark-700 shadow-xl"
       >
         <label className="block text-sm font-medium text-cyan-400 mb-2">Select EDM Sample</label>
-        <div className="flex flex-col gap-2">
-          {edmFiles.map(opt => (
-            <div key={opt.file} className="flex items-center gap-2">
-              <input
-                type="radio"
-                name="edm-sample"
-                value={opt.file}
-                checked={selectedEdm === opt.file}
-                onChange={() => setSelectedEdm(opt.file)}
-              />
-              <span>{opt.label}</span>
-              <button
-                type="button"
-                onClick={() => {
-                  setPreviewingEdm(opt.file);
-                  if (audioPreviewRef.current) {
-                    audioPreviewRef.current.src = opt.file;
-                    audioPreviewRef.current.play();
-                  }
-                }}
-                className="ml-2 px-2 py-1 bg-cyan-700 text-white rounded hover:bg-cyan-600"
-              >
-                <Play className="inline w-4 h-4 mr-1" /> Preview
-              </button>
-            </div>
-          ))}
+        <div className="flex items-center gap-3">
+          <select
+            value={selectedEdm}
+            onChange={e => setSelectedEdm(e.target.value)}
+            className="bg-dark-700 border border-dark-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent appearance-none cursor-pointer"
+          >
+            {edmFiles.map(opt => (
+              <option key={opt.file} value={opt.file}>{opt.label}</option>
+            ))}
+          </select>
+          <button
+            type="button"
+            onClick={() => {
+              setPreviewingEdm(selectedEdm);
+              if (audioPreviewRef.current) {
+                audioPreviewRef.current.src = selectedEdm;
+                audioPreviewRef.current.play();
+              }
+            }}
+            className="px-4 py-2 bg-cyan-700 text-white rounded hover:bg-cyan-600"
+          >
+            <Play className="inline w-4 h-4 mr-1" /> Preview
+          </button>
           <audio ref={audioPreviewRef} style={{ display: 'none' }} onEnded={() => setPreviewingEdm(null)} />
         </div>
       </motion.div>
