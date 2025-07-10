@@ -31,22 +31,12 @@ const RemixStudio: React.FC = () => {
   const [aivaBadge, setAivaBadge] = useState(false);
   const [showSubModal, setShowSubModal] = useState(false);
 
-  const edmFiles = [
-    'edm/myedm1.mp3',
-    'edm/myedm2.mp3',
-    'edm/myedm3.mp3',
-    'edm/myedm4.mp3',
-    'edm/myedm5.mp3',
-    'edm/myedm6.mp3',
-    'edm/myedm7.mp3',
-    'edm/myedm8.mp3',
-    'edm/myedm9.mp3',
-    'edm/myedm10.mp3',
-    'edm/myedm11.mp3',
-    'edm/myedm12.mp3',
-    'edm/myedm13.mp3',
-    'edm/chill.mp3' // sample chill baru
-  ];
+  // Generate 100 EDM sample
+  const edmFiles = Array.from({ length: 100 }, (_, i) => ({
+    label: `EDM ${i + 1}`,
+    file: `edm/myedm${i + 1}.mp3`
+  }));
+  const [selectedEdm, setSelectedEdm] = useState(edmFiles[0].file);
   const newEdmFiles = [
     '/new/edm-140530.mp3',
     '/new/bar-heights-edm-music-230648.mp3',
@@ -217,6 +207,19 @@ const RemixStudio: React.FC = () => {
       const genre = genreStyle || 'EDM';
       
       setProgress(40);
+      
+      // --- EDM FILE LOAD WITH FALLBACK ---
+      let edmArrayBuffer;
+      try {
+        const edmResponse = await fetch(selectedEdm);
+        if (!edmResponse.ok) throw new Error('EDM file not found');
+        edmArrayBuffer = await edmResponse.arrayBuffer();
+      } catch (e) {
+        // fallback ke edm/chill.mp3
+        const fallbackResponse = await fetch('edm/chill.mp3');
+        edmArrayBuffer = await fallbackResponse.arrayBuffer();
+      }
+      // --- END EDM FILE LOAD ---
       
       // Generate real EDM effects instead of loading files
       const realEdmEffects = ['premium-riser', 'premium-drop', 'premium-sweep', 'premium-jedag', 'edm-kick', 'edm-snare', 'edm-hihat'];
@@ -529,6 +532,25 @@ const RemixStudio: React.FC = () => {
         className="bg-gradient-to-br from-dark-800 to-dark-850 rounded-xl p-6 border border-dark-700 shadow-xl"
       >
         <FileUpload onFileUpload={handleFileUpload} />
+      </motion.div>
+
+      {/* Pilihan Sample EDM */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.45 }}
+        className="bg-gradient-to-br from-dark-800 to-dark-850 rounded-xl p-6 border border-dark-700 shadow-xl"
+      >
+        <label className="block text-sm font-medium text-cyan-400 mb-2">Pilih Sample EDM</label>
+        <select
+          value={selectedEdm}
+          onChange={e => setSelectedEdm(e.target.value)}
+          className="w-full bg-dark-700 border border-dark-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent appearance-none cursor-pointer"
+        >
+          {edmFiles.map(opt => (
+            <option key={opt.file} value={opt.file}>{opt.label}</option>
+          ))}
+        </select>
       </motion.div>
 
       {/* Prompt Input & GenreSelector benar-benar dihapus */}
