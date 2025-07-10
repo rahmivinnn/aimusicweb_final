@@ -19,11 +19,11 @@ export class PremiumAudioProcessor {
     highPass.Q.value = 0.7;
     eqChain.push(highPass);
     
-    // Bass boost for jedag-jedug (80-120Hz)
+    // Bass boost for punchy EDM (80-120Hz)
     const bassBoost = this.audioContext.createBiquadFilter();
     bassBoost.type = 'peaking';
     bassBoost.frequency.value = 100;
-    bassBoost.gain.value = 4.0; // Lebih kuat untuk jedag-jedug
+    bassBoost.gain.value = 4.0; // Stronger for punchy EDM
     bassBoost.Q.value = 1.2;
     eqChain.push(bassBoost);
     
@@ -39,7 +39,7 @@ export class PremiumAudioProcessor {
     const harshCut = this.audioContext.createBiquadFilter();
     harshCut.type = 'peaking';
     harshCut.frequency.value = 3500;
-    harshCut.gain.value = -5.0; // Lebih agresif cut
+    harshCut.gain.value = -5.0; // More aggressive cut
     harshCut.Q.value = 2.0;
     eqChain.push(harshCut);
     
@@ -55,7 +55,7 @@ export class PremiumAudioProcessor {
     const airBoost = this.audioContext.createBiquadFilter();
     airBoost.type = 'highshelf';
     airBoost.frequency.value = 10000;
-    airBoost.gain.value = 0.5; // Lebih rendah untuk hindari siul-siul
+    airBoost.gain.value = 0.0; // Remove high-frequency boost to avoid hiss
     eqChain.push(airBoost);
     
     return eqChain;
@@ -277,8 +277,8 @@ export class PremiumAudioProcessor {
         }
         break;
         
-      case 'premium-jedag':
-        // Real EDM jedag - heavy bass with sidechain
+      case 'premium-punch':
+        // Real EDM punch - heavy bass with sidechain
         for (let i = 0; i < buffer.length; i++) {
           const t = i / sampleRate;
           

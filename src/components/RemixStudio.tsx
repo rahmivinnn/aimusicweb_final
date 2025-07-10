@@ -10,6 +10,7 @@ import { aiService } from '../services/aiService';
 import toast from 'react-hot-toast';
 import { useEffect } from 'react';
 import { PremiumAudioProcessor } from '../utils/PremiumAudioProcessor';
+import { useRef } from 'react';
 // import * as MusicBeatDetector from 'music-beat-detector';
 
 const RemixStudio: React.FC = () => {
@@ -30,6 +31,8 @@ const RemixStudio: React.FC = () => {
   const [aivaActive, setAivaActive] = useState(false);
   const [aivaBadge, setAivaBadge] = useState(false);
   const [showSubModal, setShowSubModal] = useState(false);
+  const audioPreviewRef = useRef<HTMLAudioElement | null>(null);
+  const [previewingEdm, setPreviewingEdm] = useState<string | null>(null);
 
   // Generate 100 EDM sample
   const edmFiles = Array.from({ length: 100 }, (_, i) => ({
@@ -534,23 +537,42 @@ const RemixStudio: React.FC = () => {
         <FileUpload onFileUpload={handleFileUpload} />
       </motion.div>
 
-      {/* Pilihan Sample EDM */}
+      {/* EDM Sample Selection with Preview */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.45 }}
         className="bg-gradient-to-br from-dark-800 to-dark-850 rounded-xl p-6 border border-dark-700 shadow-xl"
       >
-        <label className="block text-sm font-medium text-cyan-400 mb-2">Pilih Sample EDM</label>
-        <select
-          value={selectedEdm}
-          onChange={e => setSelectedEdm(e.target.value)}
-          className="w-full bg-dark-700 border border-dark-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent appearance-none cursor-pointer"
-        >
+        <label className="block text-sm font-medium text-cyan-400 mb-2">Select EDM Sample</label>
+        <div className="flex flex-col gap-2">
           {edmFiles.map(opt => (
-            <option key={opt.file} value={opt.file}>{opt.label}</option>
+            <div key={opt.file} className="flex items-center gap-2">
+              <input
+                type="radio"
+                name="edm-sample"
+                value={opt.file}
+                checked={selectedEdm === opt.file}
+                onChange={() => setSelectedEdm(opt.file)}
+              />
+              <span>{opt.label}</span>
+              <button
+                type="button"
+                onClick={() => {
+                  setPreviewingEdm(opt.file);
+                  if (audioPreviewRef.current) {
+                    audioPreviewRef.current.src = opt.file;
+                    audioPreviewRef.current.play();
+                  }
+                }}
+                className="ml-2 px-2 py-1 bg-cyan-700 text-white rounded hover:bg-cyan-600"
+              >
+                <Play className="inline w-4 h-4 mr-1" /> Preview
+              </button>
+            </div>
           ))}
-        </select>
+          <audio ref={audioPreviewRef} style={{ display: 'none' }} onEnded={() => setPreviewingEdm(null)} />
+        </div>
       </motion.div>
 
       {/* Prompt Input & GenreSelector benar-benar dihapus */}
@@ -742,6 +764,18 @@ const RemixStudio: React.FC = () => {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Showcase Section */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.5 }}
+        className="bg-gradient-to-br from-dark-800 to-dark-850 rounded-xl p-6 border border-cyan-700 shadow-xl mt-6"
+      >
+        <h3 className="text-lg font-bold text-cyan-400 mb-2">Remix Showcase</h3>
+        <p className="text-dark-200 mb-2">Here's how a pop song sounds when remixed with the selected EDM sample:</p>
+        <AudioPlayer src={selectedEdm} title="EDM Sample Preview" />
+      </motion.div>
 
       {/* Premium Upgrade Card */}
       <motion.div

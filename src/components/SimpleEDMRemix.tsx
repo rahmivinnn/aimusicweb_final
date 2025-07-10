@@ -15,6 +15,14 @@ const EDM_EFFECTS = [
   { name: 'Build Up', type: 'buildup', duration: 2.0, volume: 0.38 }
 ];
 
+// Add feel state
+const FEELS = [
+  { label: 'Chill', value: 'chill' },
+  { label: 'Energetic', value: 'energetic' },
+  { label: 'Uplifting', value: 'uplifting' },
+  { label: 'Dark', value: 'dark' }
+];
+
 export default function SimpleEDMRemix() {
   const [audioBuffer, setAudioBuffer] = useState<AudioBuffer|null>(null);
   const [remixUrl, setRemixUrl] = useState<string|null>(null);
@@ -25,6 +33,7 @@ export default function SimpleEDMRemix() {
   const [originalVolume, setOriginalVolume] = useState(0.8);
   const [edmVolume, setEdmVolume] = useState(0.3);
   const [bpm, setBpm] = useState(120); // Default BPM
+  const [feel, setFeel] = useState(FEELS[0].value);
 
   // Upload and decode audio
   async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -72,7 +81,19 @@ export default function SimpleEDMRemix() {
 
       // EDM effects mixer
       const edmMixer = ctx.createGain();
-      edmMixer.gain.value = edmVolume * effectIntensity;
+      // In handleCreateRemix, use feel to influence effect selection/intensity
+      // Place effects every 4th beat for musicality
+      const beatInterval = 60 / bpm; // seconds per beat
+      const beatsPerBar = 4;
+      const effectInterval = beatInterval * beatsPerBar;
+      // Adjust effectIntensity and edmVolume based on feel
+      let feelIntensity = effectIntensity;
+      let feelEdmVolume = edmVolume;
+      if (feel === 'chill') { feelIntensity *= 0.7; feelEdmVolume *= 0.7; }
+      if (feel === 'energetic') { feelIntensity *= 1.2; feelEdmVolume *= 1.1; }
+      if (feel === 'uplifting') { feelIntensity *= 1.1; feelEdmVolume *= 1.0; }
+      if (feel === 'dark') { feelIntensity *= 0.9; feelEdmVolume *= 0.8; }
+      edmMixer.gain.value = feelEdmVolume * feelIntensity;
       edmMixer.connect(ctx.destination);
 
       // Compressor for overall mix
@@ -87,8 +108,8 @@ export default function SimpleEDMRemix() {
       compressor.connect(ctx.destination);
 
       // Calculate effect timing
-      const beatInterval = 60 / bpm; // seconds per beat
-      const effectInterval = beatInterval * (1 / effectFrequency);
+      // const beatInterval = 60 / bpm; // seconds per beat
+      // const effectInterval = beatInterval * (1 / effectFrequency);
       
       // Schedule EDM effects
       let lastEffectTime = -999;
@@ -296,6 +317,20 @@ export default function SimpleEDMRemix() {
                 <span className="text-gray-400 text-sm">{Math.round(edmVolume * 100)}%</span>
               </div>
             </div>
+          </div>
+
+          {/* UI: Add Feel dropdown above EDM Effects */}
+          <div className="bg-dark-700 p-4 rounded-lg">
+            <label className="block text-sm font-medium text-cyan-400 mb-2">Feel</label>
+            <select
+              value={feel}
+              onChange={e => setFeel(e.target.value)}
+              className="w-full bg-dark-700 border border-dark-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent appearance-none cursor-pointer"
+            >
+              {FEELS.map(opt => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
           </div>
 
           <button 
