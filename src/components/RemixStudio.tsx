@@ -537,55 +537,146 @@ const RemixStudio: React.FC = () => {
     setProgress(0);
     try {
       const audioCtx = new (window.OfflineAudioContext || (window as any).webkitOfflineAudioContext)(2, 44100 * 180, 44100);
-      const premiumProcessor = new PremiumAudioProcessor(audioCtx); // FIX: define premiumProcessor
+      const premiumProcessor = new PremiumAudioProcessor(audioCtx);
+      // 1. Decode user audio
       const userArrayBuffer = await uploadedFile.arrayBuffer();
       const userBuffer = await audioCtx.decodeAudioData(userArrayBuffer.slice(0));
-      // Strong EDM: boost bass, sidechain, obvious effects
-      const edmGain = audioCtx.createGain();
-      edmGain.gain.value = 0.45; // Even more powerful
-      const bassBoost = audioCtx.createBiquadFilter();
-      bassBoost.type = 'lowshelf';
-      bassBoost.frequency.value = 100;
-      bassBoost.gain.value = 12;
-      const stereoWiden = audioCtx.createStereoPanner();
-      stereoWiden.pan.value = 0.2;
-      const compressor = audioCtx.createDynamicsCompressor();
-      compressor.threshold.value = -18;
-      compressor.ratio.value = 6;
-      compressor.attack.value = 0.003;
-      compressor.release.value = 0.18;
-      // Connect: edmSource -> bassBoost -> edmGain -> stereoWiden -> compressor -> destination
-      const edmSource = audioCtx.createBufferSource();
-      edmSource.buffer = userBuffer; // Use user audio as the EDM source
-      edmSource.connect(bassBoost);
-      bassBoost.connect(edmGain);
-      edmGain.connect(stereoWiden);
-      stereoWiden.connect(compressor);
-      compressor.connect(audioCtx.destination);
-      // For main audio, more aggressive sidechain ducking
+      // 2. Fetch and decode EDM sample
+      let edmBuffer: AudioBuffer | null = null;
+      try {
+        const edmResponse = await fetch(selectedEdm);
+        if (edmResponse.ok) {
+          const edmArrayBuffer = await edmResponse.arrayBuffer();
+          edmBuffer = await audioCtx.decodeAudioData(edmArrayBuffer.slice(0));
+        }
+      } catch {}
+      // 3. Time-stretch EDM sample to match user BPM
+      let edmSource: AudioBufferSourceNode | null = null;
+      let edmGain: GainNode | null = null;
+      if (edmBuffer) {
+        edmSource = audioCtx.createBufferSource();
+        edmSource.buffer = edmBuffer;
+        edmSource.playbackRate.value = (userBuffer.duration / edmBuffer.duration) * (selectedBPM / 120);
+        edmGain = audioCtx.createGain();
+        edmGain.gain.value = 0.25; // Lebih pelan, groove lebih dominan
+        edmSource.connect(edmGain);
+        edmGain.connect(audioCtx.destination);
+      }
+      // 4. User audio processing
       const userSource = audioCtx.createBufferSource();
       userSource.buffer = userBuffer;
-      const userGain = audioCtx.createGain();
-      userGain.gain.value = 0.85; // Default gain
-      userSource.connect(userGain);
-      // Layer multiple EDM effects (riser, drop, sweep, white noise)
-      const riserBuffer = premiumProcessor.generatePremiumEDMEffect('premium-riser', 2.0, audioCtx.sampleRate);
-      const dropBuffer = premiumProcessor.generatePremiumEDMEffect('premium-drop', 2.0, audioCtx.sampleRate);
-      const sweepBuffer = premiumProcessor.generatePremiumEDMEffect('premium-sweep', 2.0, audioCtx.sampleRate);
-      const noiseBuffer = audioCtx.createBuffer(1, audioCtx.sampleRate * 2, audioCtx.sampleRate);
-      const noiseData = noiseBuffer.getChannelData(0);
-      for (let i = 0; i < noiseData.length; i++) {
-        noiseData[i] = (Math.random() * 2 - 1) * (1 - i / noiseData.length); // fade out
-      }
-      const noiseSource = audioCtx.createBufferSource();
-      noiseSource.buffer = noiseBuffer;
-      const noiseGain = audioCtx.createGain();
-      noiseGain.gain.value = 0.18;
-      noiseSource.connect(noiseGain).connect(audioCtx.destination);
-      noiseSource.start(0);
-      // BPM/tempo
       userSource.playbackRate.value = selectedBPM / 120;
+      const userGain = audioCtx.createGain();
+      userGain.gain.value = 0.95;
+      userSource.connect(userGain);
+      userGain.connect(audioCtx.destination);
+      // 5. Deep House Groove Layering
+      const duration = Math.min(userBuffer.duration, edmBuffer ? edmBuffer.duration : 180, 180);
+      const beatInterval = 60 / selectedBPM;
+      // Prepare effect buffers
+      const kickBuffer = premiumProcessor.generatePremiumEDMEffect('edm-kick', 0.18, audioCtx.sampleRate);
+      const snareBuffer = premiumProcessor.generatePremiumEDMEffect('edm-snare', 0.18, audioCtx.sampleRate);
+      const hatBuffer = premiumProcessor.generatePremiumEDMEffect('edm-hihat', 0.12, audioCtx.sampleRate);
+      const bassBuffer = premiumProcessor.generatePremiumEDMEffect('premium-punch', 0.25, audioCtx.sampleRate);
+      // Sweep/riser for intro/outro only
+      const riserBuffer = premiumProcessor.generatePremiumEDMEffect('premium-riser', 2.0, audioCtx.sampleRate);
+      const sweepBuffer = premiumProcessor.generatePremiumEDMEffect('premium-sweep', 2.0, audioCtx.sampleRate);
+      // Layer groove
+      for (let bar = 0; bar < duration / (beatInterval * 4); bar++) {
+        const barStart = bar * beatInterval * 4;
+        // Beat 1: Kick + Bass
+        let t = barStart;
+        {
+          const kickSource = audioCtx.createBufferSource();
+          kickSource.buffer = kickBuffer;
+          const kickGain = audioCtx.createGain();
+          kickGain.gain.value = 0.55;
+          kickSource.connect(kickGain);
+          kickGain.connect(audioCtx.destination);
+          kickSource.start(t);
+          // Sidechain ducking
+          userGain.gain.setValueAtTime(0.55, t);
+          userGain.gain.linearRampToValueAtTime(0.95, t + 0.18);
+          // Bass
+          const bassSource = audioCtx.createBufferSource();
+          bassSource.buffer = bassBuffer;
+          const bassGain = audioCtx.createGain();
+          bassGain.gain.value = 0.45;
+          bassSource.connect(bassGain);
+          bassGain.connect(audioCtx.destination);
+          bassSource.start(t);
+        }
+        // Beat 2: Snare
+        t = barStart + beatInterval;
+        {
+          const snareSource = audioCtx.createBufferSource();
+          snareSource.buffer = snareBuffer;
+          const snareGain = audioCtx.createGain();
+          snareGain.gain.value = 0.38;
+          snareSource.connect(snareGain);
+          snareGain.connect(audioCtx.destination);
+          snareSource.start(t);
+        }
+        // Beat 3: Kick
+        t = barStart + beatInterval * 2;
+        {
+          const kickSource = audioCtx.createBufferSource();
+          kickSource.buffer = kickBuffer;
+          const kickGain = audioCtx.createGain();
+          kickGain.gain.value = 0.5;
+          kickSource.connect(kickGain);
+          kickGain.connect(audioCtx.destination);
+          kickSource.start(t);
+          // Sidechain ducking
+          userGain.gain.setValueAtTime(0.6, t);
+          userGain.gain.linearRampToValueAtTime(0.95, t + 0.18);
+        }
+        // Beat 4: Snare
+        t = barStart + beatInterval * 3;
+        {
+          const snareSource = audioCtx.createBufferSource();
+          snareSource.buffer = snareBuffer;
+          const snareGain = audioCtx.createGain();
+          snareGain.gain.value = 0.35;
+          snareSource.connect(snareGain);
+          snareGain.connect(audioCtx.destination);
+          snareSource.start(t);
+        }
+        // Off-beat hats (deep house style)
+        for (let b = 0.5; b < 4; b += 1) {
+          const hatTime = barStart + b * beatInterval + beatInterval / 2;
+          if (hatTime < duration) {
+            const hatSource = audioCtx.createBufferSource();
+            hatSource.buffer = hatBuffer;
+            const hatGain = audioCtx.createGain();
+            hatGain.gain.value = 0.22;
+            hatSource.connect(hatGain);
+            hatGain.connect(audioCtx.destination);
+            hatSource.start(hatTime);
+          }
+        }
+      }
+      // Riser at intro, sweep at outro
+      {
+        const riserSource = audioCtx.createBufferSource();
+        riserSource.buffer = riserBuffer;
+        const riserGain = audioCtx.createGain();
+        riserGain.gain.value = 0.18;
+        riserSource.connect(riserGain);
+        riserGain.connect(audioCtx.destination);
+        riserSource.start(0);
+        const sweepSource = audioCtx.createBufferSource();
+        sweepSource.buffer = sweepBuffer;
+        const sweepGain = audioCtx.createGain();
+        sweepGain.gain.value = 0.15;
+        sweepSource.connect(sweepGain);
+        sweepGain.connect(audioCtx.destination);
+        sweepSource.start(duration - 2.0);
+      }
+      // 6. Start all sources
+      if (edmSource) edmSource.start(0);
       userSource.start(0);
+      // 7. Render
       const mixedBuffer = await audioCtx.startRendering();
       const wavBlob = bufferToWavBlob(mixedBuffer);
       const outputUrl = URL.createObjectURL(wavBlob);
@@ -594,8 +685,8 @@ const RemixStudio: React.FC = () => {
         outputUrl,
         bpm: selectedBPM,
         genre: 'EDM',
-        style: 'AIVA AI',
-        duration: userBuffer.duration / userSource.playbackRate.value,
+        style: 'AIVA Deep House',
+        duration: duration,
         originalFileName: uploadedFile.name
       });
       setLoading(false);
