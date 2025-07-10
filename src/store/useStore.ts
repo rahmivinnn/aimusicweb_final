@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 
 interface User {
   id: string;
@@ -135,64 +136,71 @@ const sampleTracks: Track[] = shuffledEdmFiles.map((url, i) => ({
   albumArt: premiumAlbumArts[i % premiumAlbumArts.length]
 }));
 
-export const useStore = create<AppState>((set, get) => ({
-  user: {
-    id: '1',
-    email: 'demo@aimusicweb.com',
-    name: 'Demo User',
-    credits: 8,
-    plan: 'free',
-    avatar: 'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=100&h=100&dpr=2',
-    settings: {
-      notifications: true,
-      autoPlay: false,
-      quality: 'high',
-      theme: 'dark',
-      language: 'en'
+export const useStore = create(
+  persist<AppState>(
+    (set, get) => ({
+      user: {
+        id: '1',
+        email: 'demo@aimusicweb.com',
+        name: 'Demo User',
+        credits: 8,
+        plan: 'free',
+        avatar: 'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=100&h=100&dpr=2',
+        settings: {
+          notifications: true,
+          autoPlay: false,
+          quality: 'high',
+          theme: 'dark',
+          language: 'en'
+        }
+      },
+      tracks: sampleTracks,
+      publicTracks: sampleTracks,
+      currentTrack: null,
+      isLoading: false,
+      sidebarCollapsed: false,
+      currentlyPlaying: null,
+      
+      setUser: (user) => set({ user }),
+      addTrack: (track) => set((state) => ({ 
+        tracks: [track, ...state.tracks],
+        publicTracks: track.isPublic ? [track, ...state.publicTracks] : state.publicTracks
+      })),
+      updateTrack: (id, updates) => set((state) => ({
+        tracks: state.tracks.map(track => 
+          track.id === id ? { ...track, ...updates } : track
+        ),
+        publicTracks: state.publicTracks.map(track => 
+          track.id === id ? { ...track, ...updates } : track
+        )
+      })),
+      setCurrentTrack: (track) => set({ currentTrack: track }),
+      setLoading: (loading) => set({ isLoading: loading }),
+      toggleSidebar: () => set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
+      setSidebarCollapsed: (collapsed) => set({ sidebarCollapsed: collapsed }),
+      setCurrentlyPlaying: (trackId) => set({ currentlyPlaying: trackId }),
+      useCredit: () => set((state) => ({
+        user: state.user ? { ...state.user, credits: Math.max(0, state.user.credits - 1) } : null
+      })),
+      updateUserSettings: (settings) => set((state) => ({
+        user: state.user ? { ...state.user, settings: { ...state.user.settings, ...settings } } : null
+      })),
+      likeTrack: (trackId) => set((state) => ({
+        publicTracks: state.publicTracks.map(track =>
+          track.id === trackId ? { ...track, likes: track.likes + 1 } : track
+        )
+      })),
+      downloadTrack: (trackId) => set((state) => ({
+        publicTracks: state.publicTracks.map(track =>
+          track.id === trackId ? { ...track, downloads: track.downloads + 1 } : track
+        )
+      })),
+      subscribe: () => {
+        alert('Thank you for subscribing! (This is a demo action)');
+      },
+    }),
+    {
+      name: 'aimusicweb-store'
     }
-  },
-  tracks: sampleTracks,
-  publicTracks: sampleTracks,
-  currentTrack: null,
-  isLoading: false,
-  sidebarCollapsed: false,
-  currentlyPlaying: null,
-  
-  setUser: (user) => set({ user }),
-  addTrack: (track) => set((state) => ({ 
-    tracks: [track, ...state.tracks],
-    publicTracks: track.isPublic ? [track, ...state.publicTracks] : state.publicTracks
-  })),
-  updateTrack: (id, updates) => set((state) => ({
-    tracks: state.tracks.map(track => 
-      track.id === id ? { ...track, ...updates } : track
-    ),
-    publicTracks: state.publicTracks.map(track => 
-      track.id === id ? { ...track, ...updates } : track
-    )
-  })),
-  setCurrentTrack: (track) => set({ currentTrack: track }),
-  setLoading: (loading) => set({ isLoading: loading }),
-  toggleSidebar: () => set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
-  setSidebarCollapsed: (collapsed) => set({ sidebarCollapsed: collapsed }),
-  setCurrentlyPlaying: (trackId) => set({ currentlyPlaying: trackId }),
-  useCredit: () => set((state) => ({
-    user: state.user ? { ...state.user, credits: Math.max(0, state.user.credits - 1) } : null
-  })),
-  updateUserSettings: (settings) => set((state) => ({
-    user: state.user ? { ...state.user, settings: { ...state.user.settings, ...settings } } : null
-  })),
-  likeTrack: (trackId) => set((state) => ({
-    publicTracks: state.publicTracks.map(track =>
-      track.id === trackId ? { ...track, likes: track.likes + 1 } : track
-    )
-  })),
-  downloadTrack: (trackId) => set((state) => ({
-    publicTracks: state.publicTracks.map(track =>
-      track.id === trackId ? { ...track, downloads: track.downloads + 1 } : track
-    )
-  })),
-  subscribe: () => {
-    alert('Thank you for subscribing! (This is a demo action)');
-  },
-}));
+  )
+);
