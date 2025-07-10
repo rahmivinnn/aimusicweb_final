@@ -530,6 +530,70 @@ const RemixStudio: React.FC = () => {
     </motion.div>
   );
 
+  // In AIVA AI button handler, instantly apply strong EDM remix
+  const handleAivaRemix = async () => {
+    if (!uploadedFile) return;
+    setLoading(true);
+    setProgress(0);
+    try {
+      const audioCtx = new (window.OfflineAudioContext || (window as any).webkitOfflineAudioContext)(2, 44100 * 180, 44100);
+      const userArrayBuffer = await uploadedFile.arrayBuffer();
+      const userBuffer = await audioCtx.decodeAudioData(userArrayBuffer.slice(0));
+      // Strong EDM: boost bass, sidechain, obvious effects
+      const edmGain = audioCtx.createGain();
+      edmGain.gain.value = 0.35;
+      const bassBoost = audioCtx.createBiquadFilter();
+      bassBoost.type = 'lowshelf';
+      bassBoost.frequency.value = 120;
+      bassBoost.gain.value = 8;
+      // Main source
+      const userSource = audioCtx.createBufferSource();
+      userSource.buffer = userBuffer;
+      // Sidechain
+      const sidechain = audioCtx.createGain();
+      sidechain.gain.value = 0.7;
+      // Connect: userSource -> sidechain -> bassBoost -> edmGain -> destination
+      userSource.connect(sidechain);
+      sidechain.connect(bassBoost);
+      bassBoost.connect(edmGain);
+      edmGain.connect(audioCtx.destination);
+      // Obvious EDM effects (riser, drop, sweep)
+      // (For demo, just add a simple white noise riser at the start)
+      const noiseBuffer = audioCtx.createBuffer(1, audioCtx.sampleRate * 2, audioCtx.sampleRate);
+      const data = noiseBuffer.getChannelData(0);
+      for (let i = 0; i < data.length; i++) {
+        data[i] = (Math.random() * 2 - 1) * (1 - i / data.length); // fade out
+      }
+      const noiseSource = audioCtx.createBufferSource();
+      noiseSource.buffer = noiseBuffer;
+      const noiseGain = audioCtx.createGain();
+      noiseGain.gain.value = 0.18;
+      noiseSource.connect(noiseGain).connect(audioCtx.destination);
+      noiseSource.start(0);
+      // BPM/tempo
+      userSource.playbackRate.value = selectedBPM / 120;
+      userSource.start(0);
+      const mixedBuffer = await audioCtx.startRendering();
+      const wavBlob = bufferToWavBlob(mixedBuffer);
+      const outputUrl = URL.createObjectURL(wavBlob);
+      setGeneratedTrack({
+        userAudio: URL.createObjectURL(uploadedFile),
+        outputUrl,
+        bpm: selectedBPM,
+        genre: 'EDM',
+        style: 'AIVA AI',
+        duration: userBuffer.duration / userSource.playbackRate.value,
+        originalFileName: uploadedFile.name
+      });
+      setLoading(false);
+      setProgress(0);
+    } catch (err) {
+      setLoading(false);
+      setProgress(0);
+      toast.error('AIVA remix failed');
+    }
+  };
+
   return (
     <div className="max-w-6xl mx-auto p-6 space-y-8">
       {/* Header */}
@@ -942,100 +1006,7 @@ const RemixStudio: React.FC = () => {
                   <span className="flex-1 text-white">{sample.title}</span>
                   <button onClick={() => setPreviewUrl(sample.url)} className="text-cyan-400 underline ml-2">Preview</button>
                   <button
-                    onClick={async () => {
-                      setAivaActive(true);
-                      setAivaBadge(true);
-                      // Mixing dengan preset EDM effect (misal filter sweep)
-                      if (!uploadedFile) return;
-                      setLoading(true);
-                      setProgress(0);
-                      const edmEffectFile = '/edm/sweep1.wav';
-                      try {
-                        const userArrayBuffer = await uploadedFile.arrayBuffer();
-                        const edmResponse = await fetch(edmEffectFile);
-                        const edmArrayBuffer = await edmResponse.arrayBuffer();
-                        const audioCtx = new (window.OfflineAudioContext || (window as any).webkitOfflineAudioContext)(2, 44100 * 180, 44100);
-                        const [userBuffer, edmBuffer] = await Promise.all([
-                          audioCtx.decodeAudioData(userArrayBuffer.slice(0)),
-                          audioCtx.decodeAudioData(edmArrayBuffer.slice(0))
-                        ]);
-                        const duration = Math.min(userBuffer.duration, edmBuffer.duration, 180);
-                        const userSource = audioCtx.createBufferSource();
-                        userSource.buffer = userBuffer;
-                        const edmSource = audioCtx.createBufferSource();
-                        edmSource.buffer = await audioCtx.decodeAudioData(edmArrayBuffer.slice(0));
-                        const edmOriginalBpm = 128; // Assume EDM sample is 128 BPM
-                        const userBpm = detectedBpm || 120;
-                        edmSource.playbackRate.value = userBpm / edmOriginalBpm;
-                        const edmStartTime = beatMarkers.length > 0 ? beatMarkers[0] : 0;
-                        // Gain
-                        const userGain = audioCtx.createGain();
-                        userGain.gain.value = 0.7;
-                        // When mixing EDM, make it more powerful and crisp
-                        const edmGain = audioCtx.createGain();
-                        edmGain.gain.value = 0.18; // Louder EDM, but not overpowering
-                        // Add a gentle high-shelf boost for clarity
-                        const highShelf = audioCtx.createBiquadFilter();
-                        highShelf.type = 'highshelf';
-                        highShelf.frequency.value = 7000;
-                        highShelf.gain.value = 2.5;
-                        // Connect: edmSource -> edmGain -> highShelf -> destination
-                        edmSource.connect(edmGain);
-                        edmGain.connect(highShelf);
-                        highShelf.connect(audioCtx.destination);
-                        // Filter effect
-                        const filter = audioCtx.createBiquadFilter();
-                        filter.type = 'highpass';
-                        filter.frequency.setValueAtTime(400, 0);
-                        filter.frequency.linearRampToValueAtTime(80, duration);
-                        // Reverb (simple)
-                        const convolver = audioCtx.createConvolver();
-                        const irBuffer = audioCtx.createBuffer(2, audioCtx.sampleRate * 2, audioCtx.sampleRate);
-                        for (let c = 0; c < 2; c++) {
-                          const channel = irBuffer.getChannelData(c);
-                          for (let i = 0; i < irBuffer.length; i++) {
-                            channel[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / irBuffer.length, 2.5);
-                          }
-                        }
-                        convolver.buffer = irBuffer;
-                        // Routing: user → gain → filter → reverb → destination
-                        userSource.connect(userGain).connect(filter).connect(convolver).connect(audioCtx.destination);
-                        edmSource.connect(audioCtx.destination);
-                        userSource.start(0);
-                        edmSource.start(edmStartTime);
-                        const mixedBuffer = await audioCtx.startRendering();
-                        const wavBlob = bufferToWavBlob(mixedBuffer);
-                        const outputUrl = URL.createObjectURL(wavBlob);
-                        setGeneratedTrack({
-                          id: Date.now().toString(),
-                          name: `AIVA AI Remix - ${uploadedFile.name}`,
-                          inputUrl: '',
-                          prompt,
-                          genre: genreStyle,
-                          status: 'completed',
-                          createdAt: new Date(),
-                          outputUrl,
-                          duration: 180,
-                          bpm: selectedBPM,
-                          style: genreStyle,
-                          userId: user?.id || '1',
-                          userName: user?.name || 'AIVA',
-                          isPublic: true,
-                          likes: 0,
-                          downloads: 0,
-                          effects: selectedEffects,
-                          originalFileName: uploadedFile?.name || 'AIVA AI Remix'
-                        });
-                        setShowAivaModal(false);
-                        setPreviewUrl(null);
-                        setLoading(false);
-                        setTimeout(() => setAivaBadge(false), 8000);
-                      } catch (e) {
-                        setLoading(false);
-                        setAivaActive(false);
-                        toast.error('AIVA remix failed');
-                      }
-                    }}
+                    onClick={handleAivaRemix}
                     className="ml-2 bg-cyan-500 text-white px-3 py-1 rounded text-xs hover:bg-cyan-600"
                   >
                     Apply
