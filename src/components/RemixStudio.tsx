@@ -541,28 +541,40 @@ const RemixStudio: React.FC = () => {
       const userBuffer = await audioCtx.decodeAudioData(userArrayBuffer.slice(0));
       // Strong EDM: boost bass, sidechain, obvious effects
       const edmGain = audioCtx.createGain();
-      edmGain.gain.value = 0.35;
+      edmGain.gain.value = 0.45; // Even more powerful
       const bassBoost = audioCtx.createBiquadFilter();
       bassBoost.type = 'lowshelf';
-      bassBoost.frequency.value = 120;
-      bassBoost.gain.value = 8;
-      // Main source
+      bassBoost.frequency.value = 100;
+      bassBoost.gain.value = 12;
+      const stereoWiden = audioCtx.createStereoPanner();
+      stereoWiden.pan.value = 0.2;
+      const compressor = audioCtx.createDynamicsCompressor();
+      compressor.threshold.value = -18;
+      compressor.ratio.value = 6;
+      compressor.attack.value = 0.003;
+      compressor.release.value = 0.18;
+      // Connect: edmSource -> bassBoost -> edmGain -> stereoWiden -> compressor -> destination
+      const edmSource = audioCtx.createBufferSource();
+      edmSource.buffer = userBuffer; // Use user audio as the EDM source
+      edmSource.connect(bassBoost);
+      bassBoost.connect(edmGain);
+      edmGain.connect(stereoWiden);
+      stereoWiden.connect(compressor);
+      compressor.connect(audioCtx.destination);
+      // For main audio, more aggressive sidechain ducking
       const userSource = audioCtx.createBufferSource();
       userSource.buffer = userBuffer;
-      // Sidechain
-      const sidechain = audioCtx.createGain();
-      sidechain.gain.value = 0.7;
-      // Connect: userSource -> sidechain -> bassBoost -> edmGain -> destination
-      userSource.connect(sidechain);
-      sidechain.connect(bassBoost);
-      bassBoost.connect(edmGain);
-      edmGain.connect(audioCtx.destination);
-      // Obvious EDM effects (riser, drop, sweep)
-      // (For demo, just add a simple white noise riser at the start)
+      const userGain = audioCtx.createGain();
+      userGain.gain.value = 0.85; // Default gain
+      userSource.connect(userGain);
+      // Layer multiple EDM effects (riser, drop, sweep, white noise)
+      const riserBuffer = premiumProcessor.generatePremiumEDMEffect('premium-riser', 2.0, audioCtx.sampleRate);
+      const dropBuffer = premiumProcessor.generatePremiumEDMEffect('premium-drop', 2.0, audioCtx.sampleRate);
+      const sweepBuffer = premiumProcessor.generatePremiumEDMEffect('premium-sweep', 2.0, audioCtx.sampleRate);
       const noiseBuffer = audioCtx.createBuffer(1, audioCtx.sampleRate * 2, audioCtx.sampleRate);
-      const data = noiseBuffer.getChannelData(0);
-      for (let i = 0; i < data.length; i++) {
-        data[i] = (Math.random() * 2 - 1) * (1 - i / data.length); // fade out
+      const noiseData = noiseBuffer.getChannelData(0);
+      for (let i = 0; i < noiseData.length; i++) {
+        noiseData[i] = (Math.random() * 2 - 1) * (1 - i / noiseData.length); // fade out
       }
       const noiseSource = audioCtx.createBufferSource();
       noiseSource.buffer = noiseBuffer;
