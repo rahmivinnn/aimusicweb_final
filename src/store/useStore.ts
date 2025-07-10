@@ -200,7 +200,27 @@ export const useStore = create(
       },
     }),
     {
-      name: 'aimusicweb-store'
+      name: 'aimusicweb-store',
+      merge: (persistedState, currentState) => {
+        // Convert createdAt string to Date for tracks and publicTracks
+        const fixDates = (tracks: any[] = []) =>
+          Array.isArray(tracks)
+            ? tracks.map(track => ({
+                ...track,
+                createdAt: track.createdAt ? new Date(track.createdAt) : new Date()
+              }))
+            : [];
+        // Ensure both are objects
+        const safePersisted = typeof persistedState === 'object' && persistedState !== null ? persistedState as Partial<AppState> : {};
+        const safeCurrent = typeof currentState === 'object' && currentState !== null ? currentState as AppState : {} as AppState;
+        const state: AppState = {
+          ...safeCurrent,
+          ...safePersisted,
+        };
+        if (Array.isArray(state.tracks)) state.tracks = fixDates(state.tracks);
+        if (Array.isArray(state.publicTracks)) state.publicTracks = fixDates(state.publicTracks);
+        return state;
+      }
     }
   )
 );

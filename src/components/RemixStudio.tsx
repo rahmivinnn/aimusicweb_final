@@ -537,6 +537,7 @@ const RemixStudio: React.FC = () => {
     setProgress(0);
     try {
       const audioCtx = new (window.OfflineAudioContext || (window as any).webkitOfflineAudioContext)(2, 44100 * 180, 44100);
+      const premiumProcessor = new PremiumAudioProcessor(audioCtx); // FIX: define premiumProcessor
       const userArrayBuffer = await uploadedFile.arrayBuffer();
       const userBuffer = await audioCtx.decodeAudioData(userArrayBuffer.slice(0));
       // Strong EDM: boost bass, sidechain, obvious effects
