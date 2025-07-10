@@ -227,124 +227,75 @@ const RemixStudio: React.FC = () => {
     setLoading(true);
     setProgress(0);
     const userBpm = detectedBpm || 120;
-    
     try {
-      // Initialize premium audio processor
       const audioCtx = new (window.OfflineAudioContext || (window as any).webkitOfflineAudioContext)(2, 44100 * 180, 44100);
       const premiumProcessor = new PremiumAudioProcessor(audioCtx);
-      
-      // Update progress
       setProgress(20);
-      
       // Decode user audio
       const userArrayBuffer = await uploadedFile.arrayBuffer();
       const userBuffer = await audioCtx.decodeAudioData(userArrayBuffer.slice(0));
       const genre = genreStyle || 'EDM';
-      
       setProgress(40);
-      
       // --- EDM FILE LOAD WITH FALLBACK ---
       let edmArrayBuffer;
+      let edmBuffer;
       try {
         const edmResponse = await fetch(selectedEdm);
         if (!edmResponse.ok) throw new Error('EDM file not found');
         edmArrayBuffer = await edmResponse.arrayBuffer();
+        edmBuffer = await audioCtx.decodeAudioData(edmArrayBuffer.slice(0));
       } catch (e) {
-        // fallback ke edm/chill.mp3
-        const fallbackResponse = await fetch('edm/chill.mp3');
+        const fallbackResponse = await fetch('edm/chill1.mp3');
         edmArrayBuffer = await fallbackResponse.arrayBuffer();
+        edmBuffer = await audioCtx.decodeAudioData(edmArrayBuffer.slice(0));
       }
       // --- END EDM FILE LOAD ---
-      
-      // Generate real EDM effects instead of loading files
-      const realEdmEffects = ['premium-riser', 'premium-drop', 'premium-sweep', 'premium-jedag', 'edm-kick', 'edm-snare', 'edm-hihat'];
-      const chosenEffects = realEdmEffects.sort(() => 0.5 - Math.random()).slice(0, 3);
-      const effectBuffers: AudioBuffer[] = [];
-      
-      for (const effectType of chosenEffects) {
-        const effectBuffer = premiumProcessor.generatePremiumEDMEffect(effectType, 2.0, audioCtx.sampleRate);
-        effectBuffers.push(effectBuffer);
-      }
-      
       setProgress(60);
-      
       const duration = Math.min(userBuffer.duration, 180);
-      
-      // Create main audio source with premium processing
+      // Create main audio source
       const userSource = audioCtx.createBufferSource();
       userSource.buffer = userBuffer;
-      
+      // Create EDM source, time-stretch to match BPM
+      const edmSource = audioCtx.createBufferSource();
+      edmSource.buffer = edmBuffer;
+      const edmOriginalBpm = 128;
+      edmSource.playbackRate.value = userBpm / edmOriginalBpm;
+      const edmStartTime = beatMarkers.length > 0 ? beatMarkers[0] : 0;
       // Main gain with smooth fade in/out
       const userGain = audioCtx.createGain();
       userGain.gain.setValueAtTime(0, 0);
       userGain.gain.linearRampToValueAtTime(0.85, 1.5);
       userGain.gain.setValueAtTime(0.85, duration - 2);
       userGain.gain.linearRampToValueAtTime(0, duration);
-      
+      // EDM gain
+      const edmGain = audioCtx.createGain();
+      edmGain.gain.value = 0.18;
+      // Connect sources
+      userSource.connect(userGain).connect(audioCtx.destination);
+      edmSource.connect(edmGain).connect(audioCtx.destination);
       // Apply premium EQ to main audio
       const mainEQ = premiumProcessor.createPremiumEQ();
-      let currentNode: AudioNode = userSource;
-      currentNode.connect(userGain);
-      currentNode = userGain;
-      
+      let currentNode: AudioNode = userGain;
       for (const eqNode of mainEQ) {
         currentNode.connect(eqNode);
         currentNode = eqNode;
       }
-      
-      setProgress(80);
-      
-      // Layer real EDM effects with proper timing
-      const beatInterval = 60 / userBpm;
-      let lastEffectTime = -999;
-      
-      for (let time = 0; time < duration; time += beatInterval) {
-        if (time - lastEffectTime < 0.5) continue;
-        
-        const effectBuffer = effectBuffers[Math.floor(Math.random() * effectBuffers.length)];
-        const effectSource = audioCtx.createBufferSource();
-        effectSource.buffer = effectBuffer;
-        
-        // Real EDM effect processing
-        const effectGain = audioCtx.createGain();
-        effectGain.gain.value = 0.08; // Slightly higher for real EDM
-        effectGain.gain.setValueAtTime(0, time);
-        effectGain.gain.linearRampToValueAtTime(0.08, time + 0.1);
-        effectGain.gain.linearRampToValueAtTime(0, time + 1.5);
-        
-        // Smart ducking for real EDM
-        userGain.gain.setValueAtTime(0.85, time);
-        userGain.gain.linearRampToValueAtTime(0.65, time + 0.05);
-        userGain.gain.linearRampToValueAtTime(0.85, time + 1.0);
-        
-        // Connect effect through premium processing
-        effectSource.connect(effectGain);
-        effectGain.connect(audioCtx.destination);
-        effectSource.start(time);
-        
-        lastEffectTime = time;
-      }
-      
-      // Apply premium mastering chain to main audio
+      // Apply premium mastering chain
       const masterChain = premiumProcessor.createMasterChain();
       for (const node of masterChain) {
         currentNode.connect(node);
         currentNode = node;
       }
       currentNode.connect(audioCtx.destination);
-      
-      setProgress(90);
-      
-      // Start main audio
+      setProgress(80);
+      // Start both sources at the same time, aligned
       userSource.start(0);
-      
+      edmSource.start(edmStartTime);
       // Render with premium quality
       const mixedBuffer = await audioCtx.startRendering();
       const wavBlob = bufferToWavBlob(mixedBuffer);
       const outputUrl = URL.createObjectURL(wavBlob);
-      
       setProgress(100);
-      
       const newTrack = {
         id: Date.now().toString(),
         name: `Premium Remix of: ${uploadedFile.name}`,
@@ -362,22 +313,20 @@ const RemixStudio: React.FC = () => {
         isPublic: true,
         likes: 0,
         downloads: 0,
-        effects: chosenEffects,
+        effects: [],
         originalFileName: uploadedFile.name
       };
-      
       addTrack(newTrack);
       setGeneratedTrack(newTrack);
       useCredit();
       toast.success('🎵 Premium Remix generated with professional mastering!', { duration: 3000 });
       setLoading(false);
       setProgress(0);
-      
     } catch (err) {
       console.error('Premium remix error:', err);
       setLoading(false);
       setProgress(0);
-      toast.error('Failed to generate premium remix');
+      toast.error('Failed to generate premium remix: ' + ((err as Error)?.message || err));
     }
   };
 
