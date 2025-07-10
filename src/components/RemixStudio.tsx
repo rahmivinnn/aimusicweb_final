@@ -11,7 +11,7 @@ import toast from 'react-hot-toast';
 import { useEffect } from 'react';
 import { PremiumAudioProcessor } from '../utils/PremiumAudioProcessor';
 import { useRef } from 'react';
-// import * as MusicBeatDetector from 'music-beat-detector';
+import MusicBeatDetector from 'music-beat-detector';
 
 const RemixStudio: React.FC = () => {
   const { user, addTrack, setLoading, isLoading, useCredit } = useStore();
@@ -33,12 +33,31 @@ const RemixStudio: React.FC = () => {
   const [showSubModal, setShowSubModal] = useState(false);
   const audioPreviewRef = useRef<HTMLAudioElement | null>(null);
   const [previewingEdm, setPreviewingEdm] = useState<string | null>(null);
+  // Preview button state
+  const [isPreviewing, setIsPreviewing] = useState(false);
+  const [detectedBpm, setDetectedBpm] = useState<number | null>(null);
+  const [beatMarkers, setBeatMarkers] = useState<number[]>([]);
 
   // Generate 100 EDM sample
-  const edmFiles = Array.from({ length: 100 }, (_, i) => ({
-    label: `EDM ${i + 1}`,
-    file: `edm/myedm${i + 1}.mp3`
-  }));
+  const edmFiles = [
+    { label: 'EDM 1', file: 'edm/myedm1.mp3' },
+    { label: 'EDM 2', file: 'edm/myedm2.mp3' },
+    { label: 'EDM 3', file: 'edm/myedm3.mp3' },
+    { label: 'EDM 4', file: 'edm/myedm4.mp3' },
+    { label: 'EDM 5', file: 'edm/myedm5.mp3' },
+    { label: 'EDM 6', file: 'edm/myedm6.mp3' },
+    { label: 'EDM 7', file: 'edm/myedm7.mp3' },
+    { label: 'EDM 8', file: 'edm/myedm8.mp3' },
+    { label: 'EDM 9', file: 'edm/myedm9.mp3' },
+    { label: 'EDM 10', file: 'edm/myedm10.mp3' },
+    { label: 'EDM 11', file: 'edm/myedm11.mp3' },
+    { label: 'EDM 12', file: 'edm/myedm12.mp3' },
+    { label: 'EDM 13', file: 'edm/myedm13.mp3' },
+    { label: 'Chill 1', file: 'edm/chill1.mp3' },
+    { label: 'Chill 2', file: 'edm/chill2.mp3' },
+    { label: 'Chill 3', file: 'edm/chill3.mp3' },
+    { label: 'Chill 4', file: 'edm/chill4.mp3' }
+  ];
   const [selectedEdm, setSelectedEdm] = useState(edmFiles[0].file);
   const newEdmFiles = [
     '/new/edm-140530.mp3',
@@ -124,8 +143,21 @@ const RemixStudio: React.FC = () => {
   </div>
 );
 
-  const handleFileUpload = (file: File) => {
+  const handleFileUpload = async (file: File) => {
     setUploadedFile(file);
+    // Auto-detect BPM and beats
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const audioBlob = new Blob([arrayBuffer]);
+      const bpmResult = await MusicBeatDetector(audioBlob);
+      setDetectedBpm(bpmResult.tempo);
+      setBeatMarkers(bpmResult.beats);
+      setSelectedBPM(Math.round(bpmResult.tempo));
+    } catch (error) {
+      setDetectedBpm(120);
+      setBeatMarkers([]);
+      setSelectedBPM(120);
+    }
   };
 
   const handleGenreToggle = (genre: string) => {
@@ -194,6 +226,7 @@ const RemixStudio: React.FC = () => {
     }
     setLoading(true);
     setProgress(0);
+    const userBpm = detectedBpm || 120;
     
     try {
       // Initialize premium audio processor
@@ -206,7 +239,6 @@ const RemixStudio: React.FC = () => {
       // Decode user audio
       const userArrayBuffer = await uploadedFile.arrayBuffer();
       const userBuffer = await audioCtx.decodeAudioData(userArrayBuffer.slice(0));
-      let userBpm = 120;
       const genre = genreStyle || 'EDM';
       
       setProgress(40);
@@ -559,17 +591,33 @@ const RemixStudio: React.FC = () => {
           <button
             type="button"
             onClick={() => {
-              setPreviewingEdm(selectedEdm);
               if (audioPreviewRef.current) {
-                audioPreviewRef.current.src = selectedEdm;
-                audioPreviewRef.current.play();
+                if (isPreviewing) {
+                  audioPreviewRef.current.pause();
+                  audioPreviewRef.current.currentTime = 0;
+                  setIsPreviewing(false);
+                } else {
+                  setPreviewingEdm(selectedEdm);
+                  audioPreviewRef.current.src = selectedEdm;
+                  audioPreviewRef.current.play();
+                  setIsPreviewing(true);
+                }
               }
             }}
             className="px-4 py-2 bg-cyan-700 text-white rounded hover:bg-cyan-600"
           >
-            <Play className="inline w-4 h-4 mr-1" /> Preview
+            {isPreviewing ? (
+              <span className="flex items-center"><svg className="animate-spin w-4 h-4 mr-1" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" /></svg> Playing</span>
+            ) : (
+              <span className="flex items-center"><Play className="inline w-4 h-4 mr-1" /> Preview</span>
+            )}
           </button>
-          <audio ref={audioPreviewRef} style={{ display: 'none' }} onEnded={() => setPreviewingEdm(null)} />
+          <audio
+            ref={audioPreviewRef}
+            style={{ display: 'none' }}
+            onEnded={() => { setPreviewingEdm(null); setIsPreviewing(false); }}
+            onPause={() => setIsPreviewing(false)}
+          />
         </div>
       </motion.div>
 
@@ -872,7 +920,11 @@ const RemixStudio: React.FC = () => {
                         const userSource = audioCtx.createBufferSource();
                         userSource.buffer = userBuffer;
                         const edmSource = audioCtx.createBufferSource();
-                        edmSource.buffer = edmBuffer;
+                        edmSource.buffer = await audioCtx.decodeAudioData(edmArrayBuffer.slice(0));
+                        const edmOriginalBpm = 128; // Assume EDM sample is 128 BPM
+                        const userBpm = detectedBpm || 120;
+                        edmSource.playbackRate.value = userBpm / edmOriginalBpm;
+                        const edmStartTime = beatMarkers.length > 0 ? beatMarkers[0] : 0;
                         // Gain
                         const userGain = audioCtx.createGain();
                         userGain.gain.value = 0.7;
@@ -897,7 +949,7 @@ const RemixStudio: React.FC = () => {
                         userSource.connect(userGain).connect(filter).connect(convolver).connect(audioCtx.destination);
                         edmSource.connect(edmGain).connect(audioCtx.destination);
                         userSource.start(0);
-                        edmSource.start(0);
+                        edmSource.start(edmStartTime);
                         const mixedBuffer = await audioCtx.startRendering();
                         const wavBlob = bufferToWavBlob(mixedBuffer);
                         const outputUrl = URL.createObjectURL(wavBlob);
