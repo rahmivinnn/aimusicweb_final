@@ -44,7 +44,8 @@ const RemixStudio: React.FC = () => {
     'edm/myedm10.mp3',
     'edm/myedm11.mp3',
     'edm/myedm12.mp3',
-    'edm/myedm13.mp3'
+    'edm/myedm13.mp3',
+    'edm/chill.mp3' // sample chill baru
   ];
   const newEdmFiles = [
     '/new/edm-140530.mp3',
@@ -268,9 +269,9 @@ const RemixStudio: React.FC = () => {
         
         // Real EDM effect processing
         const effectGain = audioCtx.createGain();
-        effectGain.gain.value = 0.2; // Slightly higher for real EDM
+        effectGain.gain.value = 0.08; // Slightly higher for real EDM
         effectGain.gain.setValueAtTime(0, time);
-        effectGain.gain.linearRampToValueAtTime(0.2, time + 0.1);
+        effectGain.gain.linearRampToValueAtTime(0.08, time + 0.1);
         effectGain.gain.linearRampToValueAtTime(0, time + 1.5);
         
         // Smart ducking for real EDM
@@ -530,34 +531,7 @@ const RemixStudio: React.FC = () => {
         <FileUpload onFileUpload={handleFileUpload} />
       </motion.div>
 
-      {/* Prompt Input */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.5 }}
-        className="bg-gradient-to-br from-dark-800 to-dark-850 rounded-xl p-6 border border-dark-700 shadow-xl"
-      >
-        <div className="flex items-center space-x-3 mb-6">
-          <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-purple-600 rounded-lg flex items-center justify-center">
-            <Zap className="w-5 h-5 text-white" />
-          </div>
-          <h3 className="text-xl font-semibold text-white">AI Remix Prompt</h3>
-        </div>
-        
-        <textarea
-          value={prompt}
-          onChange={(e) => setPrompt(e.target.value)}
-          placeholder="Describe your perfect remix... (e.g., 'Transform this into an epic synthwave track with heavy bass, retro synths, and cyberpunk vibes')"
-          className="w-full h-32 bg-dark-700 border border-dark-600 rounded-lg px-4 py-3 text-white placeholder-dark-400 resize-none focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
-        />
-        
-        <div className="mt-6">
-          <GenreSelector 
-            selectedGenres={selectedGenres}
-            onGenreToggle={handleGenreToggle}
-          />
-        </div>
-      </motion.div>
+      {/* Prompt Input & GenreSelector benar-benar dihapus */}
 
       {/* Remix Settings */}
       <motion.div
@@ -620,7 +594,7 @@ const RemixStudio: React.FC = () => {
             }
             handleGenerateRemix();
           }}
-          disabled={!uploadedFile || !prompt.trim() || !user || user.credits <= 0 || isLoading}
+          disabled={!uploadedFile || !user || user.credits <= 0 || isLoading}
           className="relative w-full max-w-md bg-gradient-to-r from-purple-500 to-purple-600 text-white font-bold py-4 px-8 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed overflow-hidden"
         >
           <AnimatePresence mode="wait">
