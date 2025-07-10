@@ -558,7 +558,7 @@ const RemixStudio: React.FC = () => {
         edmSource.buffer = edmBuffer;
         edmSource.playbackRate.value = (userBuffer.duration / edmBuffer.duration) * (selectedBPM / 120);
         edmGain = audioCtx.createGain();
-        edmGain.gain.value = 0.25; // Lebih pelan, groove lebih dominan
+        edmGain.gain.value = 0.5; // Jelas, tapi tidak overpower
         edmSource.connect(edmGain);
         edmGain.connect(audioCtx.destination);
       }
@@ -567,111 +567,35 @@ const RemixStudio: React.FC = () => {
       userSource.buffer = userBuffer;
       userSource.playbackRate.value = selectedBPM / 120;
       const userGain = audioCtx.createGain();
-      userGain.gain.value = 0.95;
+      userGain.gain.value = 0.85;
       userSource.connect(userGain);
       userGain.connect(audioCtx.destination);
-      // 5. Deep House Groove Layering
-      const duration = Math.min(userBuffer.duration, edmBuffer ? edmBuffer.duration : 180, 180);
-      const beatInterval = 60 / selectedBPM;
-      // Prepare effect buffers
-      const kickBuffer = premiumProcessor.generatePremiumEDMEffect('edm-kick', 0.18, audioCtx.sampleRate);
-      const snareBuffer = premiumProcessor.generatePremiumEDMEffect('edm-snare', 0.18, audioCtx.sampleRate);
-      const hatBuffer = premiumProcessor.generatePremiumEDMEffect('edm-hihat', 0.12, audioCtx.sampleRate);
-      const bassBuffer = premiumProcessor.generatePremiumEDMEffect('premium-punch', 0.25, audioCtx.sampleRate);
-      // Sweep/riser for intro/outro only
-      const riserBuffer = premiumProcessor.generatePremiumEDMEffect('premium-riser', 2.0, audioCtx.sampleRate);
-      const sweepBuffer = premiumProcessor.generatePremiumEDMEffect('premium-sweep', 2.0, audioCtx.sampleRate);
-      // Layer groove
-      for (let bar = 0; bar < duration / (beatInterval * 4); bar++) {
-        const barStart = bar * beatInterval * 4;
-        // Beat 1: Kick + Bass
-        let t = barStart;
-        {
-          const kickSource = audioCtx.createBufferSource();
-          kickSource.buffer = kickBuffer;
-          const kickGain = audioCtx.createGain();
-          kickGain.gain.value = 0.55;
-          kickSource.connect(kickGain);
-          kickGain.connect(audioCtx.destination);
-          kickSource.start(t);
-          // Sidechain ducking
-          userGain.gain.setValueAtTime(0.55, t);
-          userGain.gain.linearRampToValueAtTime(0.95, t + 0.18);
-          // Bass
-          const bassSource = audioCtx.createBufferSource();
-          bassSource.buffer = bassBuffer;
-          const bassGain = audioCtx.createGain();
-          bassGain.gain.value = 0.45;
-          bassSource.connect(bassGain);
-          bassGain.connect(audioCtx.destination);
-          bassSource.start(t);
-        }
-        // Beat 2: Snare
-        t = barStart + beatInterval;
-        {
-          const snareSource = audioCtx.createBufferSource();
-          snareSource.buffer = snareBuffer;
-          const snareGain = audioCtx.createGain();
-          snareGain.gain.value = 0.38;
-          snareSource.connect(snareGain);
-          snareGain.connect(audioCtx.destination);
-          snareSource.start(t);
-        }
-        // Beat 3: Kick
-        t = barStart + beatInterval * 2;
-        {
-          const kickSource = audioCtx.createBufferSource();
-          kickSource.buffer = kickBuffer;
-          const kickGain = audioCtx.createGain();
-          kickGain.gain.value = 0.5;
-          kickSource.connect(kickGain);
-          kickGain.connect(audioCtx.destination);
-          kickSource.start(t);
-          // Sidechain ducking
-          userGain.gain.setValueAtTime(0.6, t);
-          userGain.gain.linearRampToValueAtTime(0.95, t + 0.18);
-        }
-        // Beat 4: Snare
-        t = barStart + beatInterval * 3;
-        {
-          const snareSource = audioCtx.createBufferSource();
-          snareSource.buffer = snareBuffer;
-          const snareGain = audioCtx.createGain();
-          snareGain.gain.value = 0.35;
-          snareSource.connect(snareGain);
-          snareGain.connect(audioCtx.destination);
-          snareSource.start(t);
-        }
-        // Off-beat hats (deep house style)
-        for (let b = 0.5; b < 4; b += 1) {
-          const hatTime = barStart + b * beatInterval + beatInterval / 2;
-          if (hatTime < duration) {
-            const hatSource = audioCtx.createBufferSource();
-            hatSource.buffer = hatBuffer;
-            const hatGain = audioCtx.createGain();
-            hatGain.gain.value = 0.22;
-            hatSource.connect(hatGain);
-            hatGain.connect(audioCtx.destination);
-            hatSource.start(hatTime);
-          }
+      // 5. EDM Effects (riser, drop, sweep, white noise, sidechain, dsb)
+      const effectBuffers: AudioBuffer[] = [];
+      const effectTypes = ['premium-riser', 'premium-drop', 'premium-sweep', 'premium-jedag', 'edm-kick', 'edm-snare', 'edm-hihat'];
+      for (const effectType of selectedEffects) {
+        if (effectTypes.includes(effectType)) {
+          const effectBuffer = premiumProcessor.generatePremiumEDMEffect(effectType, 2.0, audioCtx.sampleRate);
+          effectBuffers.push(effectBuffer);
         }
       }
-      // Riser at intro, sweep at outro
-      {
-        const riserSource = audioCtx.createBufferSource();
-        riserSource.buffer = riserBuffer;
-        const riserGain = audioCtx.createGain();
-        riserGain.gain.value = 0.18;
-        riserSource.connect(riserGain);
-        riserGain.connect(audioCtx.destination);
-        riserSource.start(0);
-        const sweepSource = audioCtx.createBufferSource();
-        sweepSource.buffer = sweepBuffer;
-        const sweepGain = audioCtx.createGain();
-        sweepGain.gain.value = 0.15;
-        sweepSource.connect(sweepGain);
-        sweepGain.connect(audioCtx.destination);
-        sweepSource.start(duration - 2.0);
+      // Layer effects at musical intervals
+      const duration = Math.min(userBuffer.duration, edmBuffer ? edmBuffer.duration : 180, 180);
+      const beatInterval = 60 / selectedBPM;
+      let lastEffectTime = -999;
+      const effectInterval = beatInterval * 4;
+      for (let time = 0; time < duration; time += effectInterval) {
+        if (time - lastEffectTime < 0.5) continue;
+        const effectBuffer = effectBuffers[Math.floor(Math.random() * effectBuffers.length)];
+        if (!effectBuffer) continue;
+        const effectSource = audioCtx.createBufferSource();
+        effectSource.buffer = effectBuffer;
+        const effectGain = audioCtx.createGain();
+        effectGain.gain.value = 0.25; // Lebih jelas
+        effectSource.connect(effectGain);
+        effectGain.connect(audioCtx.destination);
+        effectSource.start(time);
+        lastEffectTime = time;
       }
       // 6. Start all sources
       if (edmSource) edmSource.start(0);
@@ -685,7 +609,7 @@ const RemixStudio: React.FC = () => {
         outputUrl,
         bpm: selectedBPM,
         genre: 'EDM',
-        style: 'AIVA Deep House',
+        style: 'AIVA AI',
         duration: duration,
         originalFileName: uploadedFile.name
       });
@@ -1080,7 +1004,7 @@ const RemixStudio: React.FC = () => {
               whileHover={{ scale: 1.05, boxShadow: "0 10px 30px rgba(255, 255, 255, 0.3)" }}
               whileTap={{ scale: 0.95 }}
               className="bg-white text-purple-600 font-bold py-3 px-8 rounded-lg hover:bg-purple-50 transition-all shadow-lg"
-              onClick={() => toast.success('Redirecting to premium plans...')}
+              onClick={() => setShowSubModal(true)}
             >
               Upgrade to Pro - $19.99/month
             </motion.button>
@@ -1251,11 +1175,17 @@ const RemixStudio: React.FC = () => {
       {/* Pop-up subscription */}
       {showSubModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-          <div className="bg-dark-800 rounded-xl p-8 max-w-md w-full relative border border-cyan-500">
-            <button className="absolute top-2 right-2 text-cyan-400" onClick={() => setShowSubModal(false)}>&times;</button>
-            <h2 className="text-xl font-bold mb-4 text-cyan-400 flex items-center">Upgrade to Pro</h2>
-            <p className="text-white mb-4">Your free credits are used up. Subscribe to unlock unlimited remixes and premium features!</p>
-            <button className="w-full py-3 rounded-lg bg-gradient-to-r from-cyan-400 to-purple-500 text-white font-bold text-lg shadow-lg hover:bg-cyan-300 transition-all" onClick={() => window.location.hash = '#subscription'}>Go to Subscription</button>
+          <div className="bg-dark-800 rounded-xl p-8 max-w-md w-full relative border border-yellow-400">
+            <button className="absolute top-2 right-2 text-yellow-400" onClick={() => setShowSubModal(false)}>&times;</button>
+            <h2 className="text-2xl font-bold mb-4 text-yellow-300 flex items-center"><Crown className="w-6 h-6 mr-2" />Unlock Professional AI Features</h2>
+            <ul className="mb-4 text-white text-base space-y-2">
+              <li><Zap className="inline w-5 h-5 text-yellow-300 mr-1" /> Unlimited Credits</li>
+              <li><Sparkles className="inline w-5 h-5 text-yellow-300 mr-1" /> Pro AI Models</li>
+              <li><Download className="inline w-5 h-5 text-yellow-300 mr-1" /> HD Downloads</li>
+              <li><Music className="inline w-5 h-5 text-yellow-300 mr-1" /> Exclusive Sound Libraries</li>
+            </ul>
+            <p className="text-purple-200 mb-4">Get unlimited professional remixes, advanced AI models, and exclusive sound libraries for just <span className="font-bold text-yellow-300">$19.99/month</span>.</p>
+            <button className="w-full py-3 rounded-lg bg-gradient-to-r from-yellow-400 to-purple-500 text-white font-bold text-lg shadow-lg hover:bg-yellow-300 transition-all" onClick={() => window.location.hash = '#subscription'}>Upgrade Now</button>
           </div>
         </div>
       )}

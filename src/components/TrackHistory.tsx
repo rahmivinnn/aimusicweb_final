@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Play, Download, Share2, Heart, Clock, Music, Pause, MoreVertical, Filter, Search } from 'lucide-react';
+import { Play, Download, Share2, Heart, Clock, Music, Pause, MoreVertical, Filter, Search, Trash2 } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import AudioPlayer from './AudioPlayer';
 import toast from 'react-hot-toast';
 
 const TrackHistory: React.FC = () => {
-  const { tracks, currentlyPlaying, setCurrentlyPlaying, downloadTrack, likeTrack } = useStore();
+  const { tracks, currentlyPlaying, setCurrentlyPlaying, downloadTrack, likeTrack, removeTrack } = useStore();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | 'completed' | 'processing' | 'failed'>('all');
   const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'name'>('newest');
@@ -111,6 +111,14 @@ const TrackHistory: React.FC = () => {
                 onClick={() => handleLike(track.id)}
               >
                 <span role="img" aria-label="love" className="text-xl transition-all duration-200">❤️</span>
+              </button>
+              <button
+                className="absolute top-2 right-10 z-10 bg-black/60 rounded-full p-1 text-white hover:text-red-400 transition-all hover:scale-125 group-hover:animate-bounce"
+                aria-label="Delete"
+                tabIndex={0}
+                onClick={() => { removeTrack(track.id); toast.success('Track deleted!'); }}
+              >
+                <Trash2 className="w-5 h-5" />
               </button>
             </div>
             <div className="w-full flex flex-col items-start mb-2">

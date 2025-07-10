@@ -60,6 +60,7 @@ interface AppState {
   likeTrack: (trackId: string) => void;
   downloadTrack: (trackId: string) => void;
   subscribe: () => void;
+  removeTrack: (trackId: string) => void;
 }
 
 // Ganti edmFiles dan premiumAlbumArts dengan file dari public/new
@@ -198,6 +199,10 @@ export const useStore = create(
       subscribe: () => {
         alert('Thank you for subscribing! (This is a demo action)');
       },
+      removeTrack: (trackId) => set((state) => ({
+        tracks: state.tracks.filter(track => track.id !== trackId),
+        publicTracks: state.publicTracks.filter(track => track.id !== trackId)
+      })),
     }),
     {
       name: 'aimusicweb-store',
