@@ -143,6 +143,19 @@ const RemixStudio: React.FC = () => {
   </div>
 );
 
+  // Animated waveform component for visual interest
+  const ShowcaseWaveform = () => (
+    <div className="flex items-end gap-1 h-4">
+      {[1,2,3,4,5,6,7,8,9,10].map((n, i) => (
+        <div
+          key={i}
+          className="w-1 rounded bg-cyan-400 animate-pulse"
+          style={{ height: `${Math.abs(Math.sin(Date.now()/400 + i)) * 10 + 4}px`, transition: 'height 0.3s cubic-bezier(.4,0,.2,1)' }}
+        />
+      ))}
+    </div>
+  );
+
   const handleFileUpload = async (file: File) => {
     setUploadedFile(file);
     // Auto-detect BPM and beats
@@ -817,27 +830,39 @@ const RemixStudio: React.FC = () => {
         className="bg-gradient-to-br from-dark-800 to-dark-850 rounded-xl p-6 border border-cyan-700 shadow-xl mt-6"
       >
         <h3 className="text-lg font-bold text-cyan-400 mb-2">Remix Showcase</h3>
-        <p className="text-dark-200 mb-2">Check out our latest EDM samples for remixing:</p>
-        <div className="flex flex-col gap-3">
+        <p className="text-dark-200 mb-4">Check out our latest EDM samples for remixing:</p>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {['edm/chill2.mp3', 'edm/chill3.mp3', 'edm/chill4.mp3'].map((file, idx) => (
-            <div key={file} className="flex items-center gap-2">
-              <span className="text-white font-medium">Sample {idx + 1}</span>
+            <div key={file} className="flex flex-col items-center bg-dark-700 rounded-lg shadow-lg border border-cyan-800 p-4">
+              <span className="text-white font-medium mb-2">Sample {idx + 1}</span>
+              <ShowcaseWaveform />
               <button
                 type="button"
                 onClick={() => {
-                  setPreviewingEdm(file);
-                  if (audioPreviewRef.current) {
-                    audioPreviewRef.current.src = file;
-                    audioPreviewRef.current.play();
+                  if (previewingEdm === file && audioPreviewRef.current) {
+                    audioPreviewRef.current.pause();
+                    audioPreviewRef.current.currentTime = 0;
+                    setPreviewingEdm(null);
+                  } else {
+                    setPreviewingEdm(file);
+                    if (audioPreviewRef.current) {
+                      audioPreviewRef.current.src = file;
+                      audioPreviewRef.current.play();
+                    }
                   }
                 }}
-                className="px-3 py-1 bg-cyan-700 text-white rounded hover:bg-cyan-600"
+                className="mt-3 px-4 py-2 bg-cyan-700 text-white rounded hover:bg-cyan-600 flex items-center"
               >
-                <Play className="inline w-4 h-4 mr-1" /> Preview
+                {previewingEdm === file ? (
+                  <svg className="animate-spin w-4 h-4 mr-1" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" /></svg>
+                ) : (
+                  <Play className="inline w-4 h-4 mr-1" />
+                )}
+                {previewingEdm === file ? 'Playing' : 'Preview'}
               </button>
             </div>
           ))}
-          <audio ref={audioPreviewRef} style={{ display: 'none' }} onEnded={() => setPreviewingEdm(null)} />
+          <audio ref={audioPreviewRef} style={{ display: 'none' }} onEnded={() => setPreviewingEdm(null)} onPause={() => setPreviewingEdm(null)} />
         </div>
       </motion.div>
 
