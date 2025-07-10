@@ -537,7 +537,7 @@ const RemixStudio: React.FC = () => {
         <FileUpload onFileUpload={handleFileUpload} />
       </motion.div>
 
-      {/* EDM Sample Selection with Preview */}
+      {/* EDM Sample Selection: single-line dropdown + preview button */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -550,6 +550,7 @@ const RemixStudio: React.FC = () => {
             value={selectedEdm}
             onChange={e => setSelectedEdm(e.target.value)}
             className="bg-dark-700 border border-dark-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent appearance-none cursor-pointer"
+            style={{ minWidth: 160 }}
           >
             {edmFiles.map(opt => (
               <option key={opt.file} value={opt.file}>{opt.label}</option>
