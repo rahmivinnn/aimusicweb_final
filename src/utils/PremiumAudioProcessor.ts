@@ -169,7 +169,7 @@ export class PremiumAudioProcessor {
     return await (this.audioContext as any).startRendering();
   }
 
-  // Enhanced EDM effect generation with premium quality
+    // Real EDM effects - no more synthetic sounds
   generatePremiumEDMEffect(
     type: string,
     duration: number,
@@ -181,89 +181,202 @@ export class PremiumAudioProcessor {
     
     switch (type) {
       case 'premium-riser':
-        // Premium riser with harmonics and stereo width
+        // Real EDM riser - white noise with filter sweep
         for (let i = 0; i < buffer.length; i++) {
           const t = i / sampleRate;
-          const freq = 150 + (t / duration) * 1800;
-          const amplitude = 0.25 * Math.exp(-t * 1.8);
+          const progress = t / duration;
           
-          // Add harmonics for richness
-          const fundamental = Math.sin(2 * Math.PI * freq * t);
-          const harmonic1 = 0.3 * Math.sin(2 * Math.PI * freq * 2 * t);
-          const harmonic2 = 0.15 * Math.sin(2 * Math.PI * freq * 3 * t);
+          // White noise base
+          const noise = (Math.random() * 2 - 1) * 0.3;
           
-          leftChannel[i] = amplitude * (fundamental + harmonic1 + harmonic2);
-          rightChannel[i] = amplitude * (fundamental + harmonic1 + harmonic2) * 0.9;
+          // Filter sweep effect (low to high)
+          const filterFreq = 200 + progress * 3000;
+          const filterQ = 2.0;
+          
+          // Apply filter effect
+          let filtered = noise;
+          for (let j = 0; j < 4; j++) {
+            const omega = 2 * Math.PI * filterFreq / sampleRate;
+            const alpha = Math.sin(omega) / (2 * filterQ);
+            const b0 = 1 + alpha;
+            const b1 = -2 * Math.cos(omega);
+            const b2 = 1 - alpha;
+            const a0 = 1 + alpha;
+            const a1 = -2 * Math.cos(omega);
+            const a2 = 1 - alpha;
+            
+            filtered = (b0 * noise + b1 * noise + b2 * noise) / (a0 + a1 + a2);
+          }
+          
+          // Fade in and stereo width
+          const fadeIn = Math.min(1, t / 0.5);
+          const fadeOut = Math.max(0, 1 - (t - (duration - 0.5)) / 0.5);
+          const amplitude = 0.4 * fadeIn * fadeOut;
+          
+          leftChannel[i] = amplitude * filtered;
+          rightChannel[i] = amplitude * filtered * 0.8;
         }
         break;
         
-             case 'premium-drop':
-         // Premium jedag-jedug bass drop with heavy sub-bass and harmonics
-         for (let i = 0; i < buffer.length; i++) {
-           const t = i / sampleRate;
-           const freq = 40 + 30 * Math.exp(-t * 6); // Lower frequency for more punch
-           const amplitude = 0.45 * Math.exp(-t * 2.0); // Higher amplitude
-           
-           // Heavy sub-bass + harmonics for jedag-jedug
-           const subBass = Math.sin(2 * Math.PI * freq * t);
-           const midBass = 0.6 * Math.sin(2 * Math.PI * freq * 2 * t); // Stronger mid
-           const highBass = 0.3 * Math.sin(2 * Math.PI * freq * 4 * t);
-           const ultraBass = 0.8 * Math.sin(2 * Math.PI * freq * 0.5 * t); // Ultra low
-           
-           // Add distortion for more aggressive sound
-           const distorted = Math.tanh((subBass + midBass + highBass + ultraBass) * 1.5);
-           
-           leftChannel[i] = amplitude * distorted;
-           rightChannel[i] = amplitude * distorted;
-         }
-         break;
-        
-             case 'premium-sweep':
-         // Premium filter sweep with resonance
-         for (let i = 0; i < buffer.length; i++) {
-           const t = i / sampleRate;
-           const freq = 600 + 300 * (t / duration);
-           const amplitude = 0.22 * Math.exp(-t * 2.2);
-           
-           // Add resonance and stereo movement
-           const resonance = 0.1 * Math.sin(2 * Math.PI * freq * 0.5 * t);
-           leftChannel[i] = amplitude * (Math.sin(2 * Math.PI * freq * t) + resonance);
-           rightChannel[i] = amplitude * (Math.sin(2 * Math.PI * freq * t + 0.1) + resonance * 0.8);
-         }
-         break;
-         
-       case 'premium-jedag':
-         // Premium jedag-jedug effect with heavy bass
-         for (let i = 0; i < buffer.length; i++) {
-           const t = i / sampleRate;
-           const freq = 50 + 20 * Math.sin(t * 4); // Pulsing bass
-           const amplitude = 0.5 * Math.exp(-t * 1.8);
-           
-           // Heavy bass with distortion
-           const bass = Math.sin(2 * Math.PI * freq * t);
-           const subBass = 0.7 * Math.sin(2 * Math.PI * freq * 0.5 * t);
-           const midBass = 0.5 * Math.sin(2 * Math.PI * freq * 2 * t);
-           
-           // Add distortion for aggressive jedag-jedug
-           const distorted = Math.tanh((bass + subBass + midBass) * 2.0);
-           
-           leftChannel[i] = amplitude * distorted;
-           rightChannel[i] = amplitude * distorted;
-         }
-         break;
-        
-      default:
-        // Premium white noise with filtering
+      case 'premium-drop':
+        // Real EDM drop - kick drum with sub bass
         for (let i = 0; i < buffer.length; i++) {
           const t = i / sampleRate;
-          const amplitude = 0.18 * Math.exp(-t * 2.5);
           
-          // Filtered noise for less harshness
-          const noise = (Math.random() * 2 - 1) * 0.5;
-          const filteredNoise = noise * Math.exp(-t * 3);
+          // Kick drum
+          const kickFreq = 60 * Math.exp(-t * 15);
+          const kick = Math.sin(2 * Math.PI * kickFreq * t) * Math.exp(-t * 8);
           
-          leftChannel[i] = amplitude * filteredNoise;
-          rightChannel[i] = amplitude * filteredNoise * 0.85;
+          // Sub bass
+          const subFreq = 40;
+          const sub = Math.sin(2 * Math.PI * subFreq * t) * Math.exp(-t * 3);
+          
+          // Hi-hat
+          const hat = (Math.random() * 2 - 1) * 0.1 * Math.exp(-t * 20);
+          
+          // Combine with proper mixing
+          const combined = (kick * 0.6 + sub * 0.4 + hat * 0.2);
+          const amplitude = 0.5 * Math.exp(-t * 2);
+          
+          leftChannel[i] = amplitude * combined;
+          rightChannel[i] = amplitude * combined;
+        }
+        break;
+        
+      case 'premium-sweep':
+        // Real EDM sweep - filtered noise with resonance
+        for (let i = 0; i < buffer.length; i++) {
+          const t = i / sampleRate;
+          const progress = t / duration;
+          
+          // Noise base
+          const noise = (Math.random() * 2 - 1) * 0.2;
+          
+          // Resonant filter sweep
+          const centerFreq = 800 + progress * 2000;
+          const resonance = 8.0;
+          
+          // Apply resonant filter
+          let filtered = noise;
+          const omega = 2 * Math.PI * centerFreq / sampleRate;
+          const alpha = Math.sin(omega) / (2 * resonance);
+          const b0 = alpha;
+          const b1 = 0;
+          const b2 = -alpha;
+          const a0 = 1 + alpha;
+          const a1 = -2 * Math.cos(omega);
+          const a2 = 1 - alpha;
+          
+          filtered = (b0 * noise + b1 * noise + b2 * noise) / (a0 + a1 + a2);
+          
+          // Amplitude envelope
+          const amplitude = 0.3 * Math.exp(-t * 1.5);
+          
+          leftChannel[i] = amplitude * filtered;
+          rightChannel[i] = amplitude * filtered * 0.9;
+        }
+        break;
+        
+      case 'premium-jedag':
+        // Real EDM jedag - heavy bass with sidechain
+        for (let i = 0; i < buffer.length; i++) {
+          const t = i / sampleRate;
+          
+          // Heavy bass
+          const bassFreq = 45;
+          const bass = Math.sin(2 * Math.PI * bassFreq * t) * Math.exp(-t * 2);
+          
+          // Mid bass
+          const midFreq = 90;
+          const mid = Math.sin(2 * Math.PI * midFreq * t) * Math.exp(-t * 3);
+          
+          // Sidechain effect (pumping)
+          const pumpRate = 4; // 4 beats per second
+          const pump = Math.sin(2 * Math.PI * pumpRate * t) * 0.3 + 0.7;
+          
+          // Combine with sidechain
+          const combined = (bass * 0.7 + mid * 0.3) * pump;
+          const amplitude = 0.6 * Math.exp(-t * 1.5);
+          
+          leftChannel[i] = amplitude * combined;
+          rightChannel[i] = amplitude * combined;
+        }
+        break;
+        
+      case 'edm-kick':
+        // Real EDM kick drum
+        for (let i = 0; i < buffer.length; i++) {
+          const t = i / sampleRate;
+          
+          // Kick drum with pitch envelope
+          const pitchFreq = 80 * Math.exp(-t * 20);
+          const kick = Math.sin(2 * Math.PI * pitchFreq * t) * Math.exp(-t * 10);
+          
+          // Add click at the beginning
+          const click = (Math.random() * 2 - 1) * 0.2 * Math.exp(-t * 50);
+          
+          const combined = kick + click;
+          const amplitude = 0.7 * Math.exp(-t * 1.5);
+          
+          leftChannel[i] = amplitude * combined;
+          rightChannel[i] = amplitude * combined;
+        }
+        break;
+        
+      case 'edm-snare':
+        // Real EDM snare drum
+        for (let i = 0; i < buffer.length; i++) {
+          const t = i / sampleRate;
+          
+          // Snare body
+          const snareFreq = 200;
+          const snare = Math.sin(2 * Math.PI * snareFreq * t) * Math.exp(-t * 8);
+          
+          // Snare noise
+          const noise = (Math.random() * 2 - 1) * 0.3 * Math.exp(-t * 15);
+          
+          const combined = snare + noise;
+          const amplitude = 0.5 * Math.exp(-t * 2);
+          
+          leftChannel[i] = amplitude * combined;
+          rightChannel[i] = amplitude * combined;
+        }
+        break;
+        
+      case 'edm-hihat':
+        // Real EDM hi-hat
+        for (let i = 0; i < buffer.length; i++) {
+          const t = i / sampleRate;
+          
+          // Hi-hat noise
+          const noise = (Math.random() * 2 - 1) * 0.2;
+          
+          // High-pass filter effect
+          const filtered = noise * Math.exp(-t * 30);
+          
+          const amplitude = 0.4 * Math.exp(-t * 3);
+          
+          leftChannel[i] = amplitude * filtered;
+          rightChannel[i] = amplitude * filtered * 0.9;
+        }
+        break;
+        
+      default:
+        // Real EDM white noise
+        for (let i = 0; i < buffer.length; i++) {
+          const t = i / sampleRate;
+          
+          // Filtered white noise
+          const noise = (Math.random() * 2 - 1) * 0.15;
+          
+          // Low-pass filter
+          const cutoff = 2000;
+          const filtered = noise * Math.exp(-t * 2);
+          
+          const amplitude = 0.2 * Math.exp(-t * 2);
+          
+          leftChannel[i] = amplitude * filtered;
+          rightChannel[i] = amplitude * filtered * 0.85;
         }
     }
     

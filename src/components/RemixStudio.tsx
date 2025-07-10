@@ -217,9 +217,9 @@ const RemixStudio: React.FC = () => {
       
       setProgress(40);
       
-      // Generate premium EDM effects instead of loading files
-      const premiumEffects = ['premium-riser', 'premium-drop', 'premium-sweep', 'premium-jedag'];
-      const chosenEffects = premiumEffects.sort(() => 0.5 - Math.random()).slice(0, 2);
+      // Generate real EDM effects instead of loading files
+      const realEdmEffects = ['premium-riser', 'premium-drop', 'premium-sweep', 'premium-jedag', 'edm-kick', 'edm-snare', 'edm-hihat'];
+      const chosenEffects = realEdmEffects.sort(() => 0.5 - Math.random()).slice(0, 3);
       const effectBuffers: AudioBuffer[] = [];
       
       for (const effectType of chosenEffects) {
@@ -255,28 +255,28 @@ const RemixStudio: React.FC = () => {
       
       setProgress(80);
       
-      // Layer premium EDM effects with smart timing
+      // Layer real EDM effects with proper timing
       const beatInterval = 60 / userBpm;
       let lastEffectTime = -999;
       
-      for (let time = 0; time < duration; time += beatInterval * 2) {
-        if (time - lastEffectTime < 1.0) continue;
+      for (let time = 0; time < duration; time += beatInterval) {
+        if (time - lastEffectTime < 0.5) continue;
         
         const effectBuffer = effectBuffers[Math.floor(Math.random() * effectBuffers.length)];
         const effectSource = audioCtx.createBufferSource();
         effectSource.buffer = effectBuffer;
         
-        // Premium effect processing
+        // Real EDM effect processing
         const effectGain = audioCtx.createGain();
-        effectGain.gain.value = 0.15; // Lower volume for premium blend
+        effectGain.gain.value = 0.2; // Slightly higher for real EDM
         effectGain.gain.setValueAtTime(0, time);
-        effectGain.gain.linearRampToValueAtTime(0.15, time + 0.3);
-        effectGain.gain.linearRampToValueAtTime(0, time + 2.0);
+        effectGain.gain.linearRampToValueAtTime(0.2, time + 0.1);
+        effectGain.gain.linearRampToValueAtTime(0, time + 1.5);
         
-        // Smart ducking
+        // Smart ducking for real EDM
         userGain.gain.setValueAtTime(0.85, time);
-        userGain.gain.linearRampToValueAtTime(0.6, time + 0.1);
-        userGain.gain.linearRampToValueAtTime(0.85, time + 1.5);
+        userGain.gain.linearRampToValueAtTime(0.65, time + 0.05);
+        userGain.gain.linearRampToValueAtTime(0.85, time + 1.0);
         
         // Connect effect through premium processing
         effectSource.connect(effectGain);
