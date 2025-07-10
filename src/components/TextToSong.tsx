@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import { v4 as uuidv4 } from 'uuid';
 import { useEffect } from 'react';
 import AudioPlayer from './AudioPlayer';
+import { PremiumAudioProcessor } from '../utils/PremiumAudioProcessor';
 
 const edmFiles = [
   '/new/edm-140530.mp3',
@@ -44,6 +45,60 @@ const TextToSong: React.FC = () => {
   };
 
   const vokalFile = '/new/sample.mp3';
+
+  // Smart Prompt Examples
+  const smartPrompts = [
+    "A dreamy pop ballad with lush synths and soft vocals",
+    "Energetic EDM drop with futuristic sounds",
+    "Chill lo-fi beat for studying",
+    "Upbeat pop song with catchy hooks",
+    "Dark trap beat with heavy 808s",
+    "Ambient soundscape with organic textures",
+    "Classic rock anthem with electric guitars",
+    "Melancholic piano ballad",
+    "Funky disco groove with retro synths",
+    "Trance anthem with uplifting melodies",
+    "DnB track with fast-paced drums and glitch FX",
+    "Indie rock with analog textures",
+    "Soft acoustic folk song",
+    "Jazz lounge with smooth saxophone",
+    "Epic cinematic score with strings",
+    "Happy tropical house with marimba",
+    "Sad pop with emotional vocals",
+    "Aggressive dubstep drop",
+    "Dreamy synthwave with 80s vibes",
+    "Minimal techno with deep bass",
+    "Lo-fi hip hop with vinyl crackle",
+    "Orchestral piece with dramatic build-up",
+    "Reggae with laid-back groove",
+    "Latin pop with rhythmic percussion",
+    "Future bass with vocal chops",
+    "Trap with chopped vocal glitches",
+    "House with sidechained pads",
+    "Trance with arpeggiated synths",
+    "DnB with stutter FX",
+    "Ambient with lush reverbs",
+    "Rock with reverse delays",
+    "Indie with vinyl crackle",
+    "Pop with airy transitions",
+    "EDM with punchy risers",
+    "Chillstep with soft pads",
+    "Synthpop with catchy melodies",
+    "Folk with organic instruments",
+    "Jazz with improvisational solos",
+    "Classical with grand piano",
+    "Electro swing with brass",
+    "Happy pop with claps",
+    "Sad ballad with strings",
+    "Energetic dance with build-ups",
+    "Moody trap with dark synths",
+    "Uplifting trance with long risers",
+    "Experimental electronic with glitch",
+    "Cinematic with epic drums",
+    "Lo-fi chillhop with soft keys",
+    "Funky groove with slap bass",
+    "Ambient pop with dreamy textures"
+  ];
 
   // Pengecekan otomatis file EDM dan vokal di awal
   useEffect(() => {
@@ -122,60 +177,168 @@ const TextToSong: React.FC = () => {
         return;
       }
       const edmArrayBuffer = await edmResponse.arrayBuffer();
-      // Decode audio
+      // Initialize premium audio processor
       const audioCtx = new (window.OfflineAudioContext || (window as any).webkitOfflineAudioContext)(2, 44100 * 180, 44100);
+      const premiumProcessor = new PremiumAudioProcessor(audioCtx);
+      
+      // Decode audio with premium quality
       const [vokalBuffer, edmBuffer] = await Promise.all([
         audioCtx.decodeAudioData(vokalArrayBuffer.slice(0)),
         audioCtx.decodeAudioData(edmArrayBuffer.slice(0))
       ]);
-      // Mixing: overlay vokal di atas EDM dari awal
+      
+      // Premium mixing with professional mastering
       const duration = Math.min(vokalBuffer.duration, edmBuffer.duration, 180);
+      
+      // Create sources
       const vokalSource = audioCtx.createBufferSource();
       vokalSource.buffer = vokalBuffer;
       const edmSource = audioCtx.createBufferSource();
       edmSource.buffer = edmBuffer;
-      // Gain
+      
+      // Premium gain control with smooth fades
       const vokalGain = audioCtx.createGain();
-      vokalGain.gain.value = 0.85;
+      vokalGain.gain.setValueAtTime(0, 0);
+      vokalGain.gain.linearRampToValueAtTime(0.9, 1.0);
+      vokalGain.gain.setValueAtTime(0.9, duration - 2);
+      vokalGain.gain.linearRampToValueAtTime(0, duration);
+      
       const edmGain = audioCtx.createGain();
-      edmGain.gain.value = 0.45;
-      // Reverb/Echo pada vokal
-      const convolver = audioCtx.createConvolver();
-      // Buat impulse response sederhana untuk reverb
-      const irBuffer = audioCtx.createBuffer(2, audioCtx.sampleRate * 2, audioCtx.sampleRate);
-      for (let c = 0; c < 2; c++) {
-        const channel = irBuffer.getChannelData(c);
-        for (let i = 0; i < irBuffer.length; i++) {
-          channel[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / irBuffer.length, 2.5);
+      edmGain.gain.setValueAtTime(0, 0);
+      edmGain.gain.linearRampToValueAtTime(0.5, 1.5);
+      edmGain.gain.setValueAtTime(0.5, duration - 2);
+      edmGain.gain.linearRampToValueAtTime(0, duration);
+
+      // --- AI-LIKE EFFECTS ---
+      // Batasi efek random agar tidak membuat audio blank
+      if (Math.random() < 0.5) {
+        vokalSource.playbackRate.value = 0.97 + Math.random() * 0.07; // 0.97 - 1.04
+      }
+      if (Math.random() < 0.3) {
+        edmSource.playbackRate.value = 0.98 + Math.random() * 0.04; // 0.98 - 1.02
+      }
+      // Random filter
+      let vokalFilter, edmFilter;
+      if (Math.random() < 0.5) {
+        vokalFilter = audioCtx.createBiquadFilter();
+        vokalFilter.type = Math.random() < 0.5 ? 'lowpass' : 'highpass';
+        vokalFilter.frequency.value = 400 + Math.random() * 2000;
+      }
+      if (Math.random() < 0.4) {
+        edmFilter = audioCtx.createBiquadFilter();
+        edmFilter.type = Math.random() < 0.5 ? 'lowpass' : 'highpass';
+        edmFilter.frequency.value = 200 + Math.random() * 3000;
+      }
+      // Random echo/delay
+      let vokalDelay, edmDelay;
+      if (Math.random() < 0.4) {
+        vokalDelay = audioCtx.createDelay();
+        vokalDelay.delayTime.value = 0.15 + Math.random() * 0.25;
+        const feedback = audioCtx.createGain();
+        feedback.gain.value = 0.2 + Math.random() * 0.2;
+        vokalDelay.connect(feedback);
+        feedback.connect(vokalDelay);
+      }
+      if (Math.random() < 0.3) {
+        edmDelay = audioCtx.createDelay();
+        edmDelay.delayTime.value = 0.1 + Math.random() * 0.2;
+        const feedback = audioCtx.createGain();
+        feedback.gain.value = 0.15 + Math.random() * 0.15;
+        edmDelay.connect(feedback);
+        feedback.connect(edmDelay);
+      }
+      // Stereo pan
+      let vokalPan, edmPan;
+      if (audioCtx.createStereoPanner) {
+        if (Math.random() < 0.5) {
+          vokalPan = audioCtx.createStereoPanner();
+          vokalPan.pan.value = -0.3 + Math.random() * 0.6;
+        }
+        if (Math.random() < 0.5) {
+          edmPan = audioCtx.createStereoPanner();
+          edmPan.pan.value = -0.5 + Math.random();
         }
       }
-      convolver.buffer = irBuffer;
-      // Routing: vokal -> gain -> reverb -> destination
-      vokalSource.connect(vokalGain).connect(convolver).connect(audioCtx.destination);
-      edmSource.connect(edmGain).connect(audioCtx.destination);
+      // Preset efek berdasarkan genre/mood
+      if (genre === 'EDM' || mood === 'Energetic') {
+        edmGain.gain.value = 0.55;
+        if (vokalFilter) vokalFilter.frequency.value += 800;
+      }
+      if (genre === 'Jazz' || mood === 'Chill') {
+        vokalGain.gain.value = 0.7;
+        if (vokalDelay) vokalDelay.delayTime.value += 0.1;
+      }
+      if (genre === 'Rock' || mood === 'Dramatic') {
+        edmGain.gain.value = 0.5;
+        if (edmFilter) edmFilter.frequency.value += 1000;
+      }
+      // --- END AI-LIKE EFFECTS ---
+
+      // Apply premium EQ to both tracks
+      const vokalEQ = premiumProcessor.createPremiumEQ();
+      const edmEQ = premiumProcessor.createPremiumEQ();
+      
+      // Connect vokal through premium processing chain
+      let vokalChain: AudioNode = vokalSource;
+      vokalChain.connect(vokalGain);
+      vokalChain = vokalGain;
+      
+      for (const eqNode of vokalEQ) {
+        vokalChain.connect(eqNode);
+        vokalChain = eqNode;
+      }
+      
+      // Connect EDM through premium processing chain
+      let edmChain: AudioNode = edmSource;
+      edmChain.connect(edmGain);
+      edmChain = edmGain;
+      
+      for (const eqNode of edmEQ) {
+        edmChain.connect(eqNode);
+        edmChain = eqNode;
+      }
+      
+      // Apply premium reverb to vocals for depth
+      const premiumReverb = premiumProcessor.createPremiumReverb();
+      vokalChain.connect(premiumReverb);
+      vokalChain = premiumReverb;
+      
+      // Smart ducking: EDM ducks when vocals are present
+      const duckingGain = audioCtx.createGain();
+      duckingGain.gain.value = 0.7; // EDM is quieter when vocals play
+      edmChain.connect(duckingGain);
+      edmChain = duckingGain;
+      
+      // Apply premium mastering chain to final mix
+      const masterChain = premiumProcessor.createMasterChain();
+      
+      // Create a mixer for both tracks
+      const mixer = audioCtx.createGain();
+      vokalChain.connect(mixer);
+      edmChain.connect(mixer);
+      
+      // Connect mixer through mastering chain
+      let masterChainNode: AudioNode = mixer;
+      for (const node of masterChain) {
+        masterChainNode.connect(node);
+        masterChainNode = node;
+      }
+      masterChainNode.connect(audioCtx.destination);
       vokalSource.start(0);
       edmSource.start(0);
-      // Render
-      const renderPromise = audioCtx.startRendering();
-      // Simulasi progress
-      let progress = 0;
-      const progressInterval = setInterval(() => {
-        progress += Math.random() * 20;
-        setMixProgress(Math.min(progress, 95));
-      }, 400);
-      const mixedBuffer = await renderPromise;
-      clearInterval(progressInterval);
-      setMixProgress(100);
-      // Convert ke WAV/Blob
+      // Render with premium quality
+      const mixedBuffer = await audioCtx.startRendering();
       const wavBlob = bufferToWavBlob(mixedBuffer);
       const url = URL.createObjectURL(wavBlob);
+      
       setMixedUrl(url);
       setIsLoading(false);
       setMixing(false);
+      
       // Add to store
       const newTrack = {
         id: uuidv4(),
-        name: `${genre} Track - ${new Date().toLocaleTimeString()}`,
+        name: `Premium ${genre} Track - ${new Date().toLocaleTimeString()}`,
         inputUrl: '',
         outputUrl: url,
         prompt: prompt,
@@ -192,7 +355,7 @@ const TextToSong: React.FC = () => {
         downloads: 0
       };
       addTrack(newTrack);
-      toast.success('Track generated successfully!');
+      toast.success('Premium track generated with professional mastering!');
     } catch (error) {
       handleError(error, 'Failed to generate track');
       setIsLoading(false);
@@ -244,6 +407,21 @@ const TextToSong: React.FC = () => {
           {/* Prompt Input */}
           <div>
             <label className="block text-sm font-medium mb-2 text-white">Describe your song</label>
+            <div className="mb-4">
+              <div className="font-bold text-white mb-2">Smart Prompt</div>
+              <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto">
+                {smartPrompts.map((p, i) => (
+                  <button
+                    key={i}
+                    className="px-3 py-1 bg-cyan-700 text-white rounded hover:bg-cyan-500 text-xs"
+                    onClick={() => setPrompt(p)}
+                    type="button"
+                  >
+                    {p}
+                  </button>
+                ))}
+              </div>
+            </div>
             <div className="relative">
               <textarea
                 value={prompt}
@@ -277,16 +455,11 @@ const TextToSong: React.FC = () => {
               <label className="block text-sm font-medium mb-2 text-white">Genre</label>
               <select
                 value={genre}
-                onChange={(e) => setGenre(e.target.value)}
+                onChange={() => {}}
                 className="w-full bg-dark-700 border border-dark-600 rounded-lg p-3 text-white focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-                disabled={isLoading}
+                disabled
               >
                 <option value="EDM">EDM</option>
-                <option value="Pop">Pop</option>
-                <option value="Rock">Rock</option>
-                <option value="Hip Hop">Hip Hop</option>
-                <option value="Classical">Classical</option>
-                <option value="Jazz">Jazz</option>
               </select>
             </div>
 

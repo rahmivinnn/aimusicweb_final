@@ -9,7 +9,8 @@ import { useStore } from '../store/useStore';
 import { aiService } from '../services/aiService';
 import toast from 'react-hot-toast';
 import { useEffect } from 'react';
-import * as MusicBeatDetector from 'music-beat-detector';
+import { PremiumAudioProcessor } from '../utils/PremiumAudioProcessor';
+// import * as MusicBeatDetector from 'music-beat-detector';
 
 const RemixStudio: React.FC = () => {
   const { user, addTrack, setLoading, isLoading, useCredit } = useStore();
@@ -175,6 +176,19 @@ const RemixStudio: React.FC = () => {
     { file: '/new/edm-club-music-265781.mp3', bpm: 125 }
   ];
 
+  const edmEffectMap: Record<string, string[]> = {
+    Pop:    ['edm effects/1-edm.mp3', 'edm effects/3-edm.mp3', 'edm effects/14-edm.mp3'],
+    Trap:   ['edm effects/5-edm.mp3', 'edm effects/6-edm.mp3', 'edm effects/8-edm.mp3'],
+    House:  ['edm effects/7-edm.mp3', 'edm effects/10-edm.mp3', 'edm effects/12-edm.mp3'],
+    Trance: ['edm effects/13-edm.mp3', 'edm effects/14-edm.mp3', 'edm effects/16-edm.mp3'],
+    DnB:    ['edm effects/17-edm.mp3', 'edm effects/18 edm.mp3', 'edm effects/19 edm.mp3'],
+    Ambient:['edm effects/20 edm.mp3', 'edm effects/21 edm.mp3', 'edm effects/22 edm.mp3'],
+    Rock:   ['edm effects/23 edm.mp3', 'edm effects/24 edm.mp3', 'edm effects/25 edm.mp3'],
+    Indie:  ['edm effects/23 edm.mp3', 'edm effects/24 edm.mp3', 'edm effects/25 edm.mp3'],
+    EDM:    ['edm effects/1-edm.mp3', 'edm effects/2-edm.mp3', 'edm effects/3-edm.mp3', 'edm effects/4-edm.mp3'],
+    Default:['edm effects/1-edm.mp3', 'edm effects/2-edm.mp3', 'edm effects/3-edm.mp3']
+  };
+
   const handleGenerateRemix = async () => {
     if (!uploadedFile) {
       toast.error('Please upload an audio file first!');
@@ -186,107 +200,145 @@ const RemixStudio: React.FC = () => {
     }
     setLoading(true);
     setProgress(0);
-    for (let i = 1; i <= 3; i++) {
-      setProgress(i * 33);
-      await new Promise(res => setTimeout(res, 600));
-    }
+    
     try {
-      // Deteksi BPM audio user
-      const userArrayBuffer = await uploadedFile.arrayBuffer();
-      const userBlob = new Blob([userArrayBuffer]);
-      let userBpm = 120;
-      try {
-        const bpmResult = await (MusicBeatDetector as any)(userBlob);
-        userBpm = bpmResult.tempo;
-      } catch (e) {
-        // fallback jika gagal deteksi
-        userBpm = 120;
-      }
-      // Pilih EDM yang kontras
-      let edmCandidates;
-      if (userBpm > 120) {
-        edmCandidates = edmFilesWithBpm.filter(e => e.bpm < 110);
-      } else {
-        edmCandidates = edmFilesWithBpm.filter(e => e.bpm > 120);
-      }
-      let edmToUse;
-      if (edmCandidates.length > 0) {
-        edmToUse = edmCandidates[Math.floor(Math.random() * edmCandidates.length)];
-      } else {
-        edmToUse = edmFilesWithBpm.reduce((prev, curr) =>
-          Math.abs(curr.bpm - userBpm) > Math.abs(prev.bpm - userBpm) ? curr : prev
-        );
-      }
-      // Load EDM audio
-      const edmResponse = await fetch(edmToUse.file);
-      const edmArrayBuffer = await edmResponse.arrayBuffer();
-      // Mixing seperti sebelumnya
+      // Initialize premium audio processor
       const audioCtx = new (window.OfflineAudioContext || (window as any).webkitOfflineAudioContext)(2, 44100 * 180, 44100);
-      const [userBuffer, edmBuffer] = await Promise.all([
-        audioCtx.decodeAudioData(userArrayBuffer.slice(0)),
-        audioCtx.decodeAudioData(edmArrayBuffer.slice(0))
-      ]);
-      const duration = Math.min(userBuffer.duration, edmBuffer.duration, 180);
+      const premiumProcessor = new PremiumAudioProcessor(audioCtx);
+      
+      // Update progress
+      setProgress(20);
+      
+      // Decode user audio
+      const userArrayBuffer = await uploadedFile.arrayBuffer();
+      const userBuffer = await audioCtx.decodeAudioData(userArrayBuffer.slice(0));
+      let userBpm = 120;
+      const genre = genreStyle || 'EDM';
+      
+      setProgress(40);
+      
+      // Generate premium EDM effects instead of loading files
+      const premiumEffects = ['premium-riser', 'premium-drop', 'premium-sweep'];
+      const chosenEffects = premiumEffects.sort(() => 0.5 - Math.random()).slice(0, 2);
+      const effectBuffers: AudioBuffer[] = [];
+      
+      for (const effectType of chosenEffects) {
+        const effectBuffer = premiumProcessor.generatePremiumEDMEffect(effectType, 2.0, audioCtx.sampleRate);
+        effectBuffers.push(effectBuffer);
+      }
+      
+      setProgress(60);
+      
+      const duration = Math.min(userBuffer.duration, 180);
+      
+      // Create main audio source with premium processing
       const userSource = audioCtx.createBufferSource();
       userSource.buffer = userBuffer;
-      const edmSource = audioCtx.createBufferSource();
-      edmSource.buffer = edmBuffer;
+      
+      // Main gain with smooth fade in/out
       const userGain = audioCtx.createGain();
-      userGain.gain.value = 0.8;
-      const edmGain = audioCtx.createGain();
-      edmGain.gain.value = 0.32;
       userGain.gain.setValueAtTime(0, 0);
-      userGain.gain.linearRampToValueAtTime(0.8, 4);
-      userGain.gain.setValueAtTime(0.8, duration - 4);
+      userGain.gain.linearRampToValueAtTime(0.85, 1.5);
+      userGain.gain.setValueAtTime(0.85, duration - 2);
       userGain.gain.linearRampToValueAtTime(0, duration);
-      edmGain.gain.setValueAtTime(0, 0);
-      edmGain.gain.linearRampToValueAtTime(0.32, 4);
-      edmGain.gain.setValueAtTime(0.32, duration - 4);
-      edmGain.gain.linearRampToValueAtTime(0, duration);
-      const compressor = audioCtx.createDynamicsCompressor();
-      compressor.threshold.setValueAtTime(-10, 0);
-      compressor.knee.setValueAtTime(20, 0);
-      compressor.ratio.setValueAtTime(8, 0);
-      compressor.attack.setValueAtTime(0.003, 0);
-      compressor.release.setValueAtTime(0.25, 0);
-      userSource.connect(userGain).connect(compressor);
-      edmSource.connect(edmGain).connect(compressor);
-      compressor.connect(audioCtx.destination);
+      
+      // Apply premium EQ to main audio
+      const mainEQ = premiumProcessor.createPremiumEQ();
+      let currentNode: AudioNode = userSource;
+      currentNode.connect(userGain);
+      currentNode = userGain;
+      
+      for (const eqNode of mainEQ) {
+        currentNode.connect(eqNode);
+        currentNode = eqNode;
+      }
+      
+      setProgress(80);
+      
+      // Layer premium EDM effects with smart timing
+      const beatInterval = 60 / userBpm;
+      let lastEffectTime = -999;
+      
+      for (let time = 0; time < duration; time += beatInterval * 2) {
+        if (time - lastEffectTime < 1.0) continue;
+        
+        const effectBuffer = effectBuffers[Math.floor(Math.random() * effectBuffers.length)];
+        const effectSource = audioCtx.createBufferSource();
+        effectSource.buffer = effectBuffer;
+        
+        // Premium effect processing
+        const effectGain = audioCtx.createGain();
+        effectGain.gain.value = 0.15; // Lower volume for premium blend
+        effectGain.gain.setValueAtTime(0, time);
+        effectGain.gain.linearRampToValueAtTime(0.15, time + 0.3);
+        effectGain.gain.linearRampToValueAtTime(0, time + 2.0);
+        
+        // Smart ducking
+        userGain.gain.setValueAtTime(0.85, time);
+        userGain.gain.linearRampToValueAtTime(0.6, time + 0.1);
+        userGain.gain.linearRampToValueAtTime(0.85, time + 1.5);
+        
+        // Connect effect through premium processing
+        effectSource.connect(effectGain);
+        effectGain.connect(audioCtx.destination);
+        effectSource.start(time);
+        
+        lastEffectTime = time;
+      }
+      
+      // Apply premium mastering chain to main audio
+      const masterChain = premiumProcessor.createMasterChain();
+      for (const node of masterChain) {
+        currentNode.connect(node);
+        currentNode = node;
+      }
+      currentNode.connect(audioCtx.destination);
+      
+      setProgress(90);
+      
+      // Start main audio
       userSource.start(0);
-      edmSource.start(0);
+      
+      // Render with premium quality
       const mixedBuffer = await audioCtx.startRendering();
       const wavBlob = bufferToWavBlob(mixedBuffer);
       const outputUrl = URL.createObjectURL(wavBlob);
+      
+      setProgress(100);
+      
       const newTrack = {
         id: Date.now().toString(),
-        name: `Remix of: ${uploadedFile.name}`,
+        name: `Premium Remix of: ${uploadedFile.name}`,
         inputUrl: '',
         prompt,
-        genre: genreStyle,
+        genre,
         status: 'completed' as const,
         createdAt: new Date(),
         outputUrl,
-        duration: 180,
-        bpm: selectedBPM,
-        style: genreStyle,
+        duration: duration,
+        bpm: userBpm,
+        style: genre,
         userId: user.id,
         userName: user.name,
         isPublic: true,
         likes: 0,
         downloads: 0,
-        effects: selectedEffects,
+        effects: chosenEffects,
         originalFileName: uploadedFile.name
       };
+      
       addTrack(newTrack);
       setGeneratedTrack(newTrack);
       useCredit();
-      toast.success('🎵 Remix generated!', { duration: 3000 });
+      toast.success('🎵 Premium Remix generated with professional mastering!', { duration: 3000 });
       setLoading(false);
       setProgress(0);
+      
     } catch (err) {
+      console.error('Premium remix error:', err);
       setLoading(false);
       setProgress(0);
-      toast.error('Failed to mix audio');
+      toast.error('Failed to generate premium remix');
     }
   };
 
@@ -866,19 +918,19 @@ const RemixStudio: React.FC = () => {
       {/* Remix Now Button */}
       <div className="flex justify-center mt-6">
         <button
-          onClick={handleSimulatedRemix}
+          onClick={handleGenerateRemix}
           className="bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-3 px-8 rounded-xl shadow-lg transition-all duration-300"
-          disabled={!uploadedFile || isRemixing}
+          disabled={!uploadedFile || isLoading}
         >
           Remix Now
         </button>
       </div>
 
       {/* Remix Result */}
-      {isRemixing && (
+      {isLoading && (
         <div className="text-cyan-400 text-lg font-bold my-8 text-center">Now Remixing…</div>
       )}
-      {remixResult && (
+      {generatedTrack && generatedTrack.outputUrl && (
         <div className="relative">
           {/* Dynamic animated background */}
           <motion.div
@@ -896,7 +948,7 @@ const RemixStudio: React.FC = () => {
             initial={{ opacity: 0, y: 20, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -20, scale: 0.95 }}
-            className={`remix-output mt-8 p-6 rounded-xl border-2 relative overflow-hidden bg-gradient-to-br ${genreBgMap[remixResult.genre] || genreBgMap.Default} animate-gradient-shift`}
+            className={`remix-output mt-8 p-6 rounded-xl border-2 relative overflow-hidden bg-gradient-to-br ${genreBgMap[generatedTrack.genre] || genreBgMap.Default} animate-gradient-shift`}
             style={{ 
               minHeight: 220,
               backgroundSize: '400% 400%',
@@ -919,47 +971,47 @@ const RemixStudio: React.FC = () => {
               }}
               className="absolute inset-0 rounded-xl pointer-events-none"
             />
-            
             {/* Floating particles */}
             <FloatingParticles />
-            
             {/* Animated sparkles */}
             <AnimatedSparkles />
-            
             {/* Confetti burst animation */}
             <ConfettiBurst />
-            
             {/* Celebration animation */}
             <CelebrationAnimation />
-            
             {/* Genre background icon */}
             <div className="absolute inset-0 flex items-center justify-center opacity-20 pointer-events-none select-none z-0">
-              {genreIconMap[remixResult.genre] || genreIconMap.Default}
+              {genreIconMap[generatedTrack.genre] || genreIconMap.Default}
             </div>
-            
             <div className="mb-2 flex gap-2 relative z-10">
               <motion.span 
                 className="px-2 py-1 bg-cyan-500/10 text-cyan-400 text-xs rounded-full font-bold animate-pulse-glow shadow-cyan-400/30 shadow-lg"
                 whileHover={{ scale: 1.05 }}
                 transition={{ type: "spring", stiffness: 400 }}
               >
-                BPM: {remixResult.bpm}
+                BPM: {generatedTrack.bpm}
               </motion.span>
               <motion.span 
                 className="px-2 py-1 bg-cyan-500/10 text-cyan-400 text-xs rounded-full font-bold animate-pulse-glow shadow-cyan-400/30 shadow-lg"
                 whileHover={{ scale: 1.05 }}
                 transition={{ type: "spring", stiffness: 400 }}
               >
-                {remixResult.genre}
+                {generatedTrack.genre}
               </motion.span>
             </div>
-            
             {/* Animated waveform visual */}
             <AnimatedWaveform color="bg-cyan-400" />
-            
-            <div className="flex flex-col md:flex-row gap-4 relative z-10">
-              <AudioPlayer src={remixResult.userAudio} title="Your Audio" />
-              {remixResult.fxAudio && <AudioPlayer src={remixResult.fxAudio} title="Genre FX" />}
+            <div className="flex flex-col gap-4 relative z-10">
+              <AudioPlayer src={generatedTrack.outputUrl} title="Remix Result" />
+            </div>
+            <div className="mt-4 flex justify-center">
+              <a
+                href={generatedTrack.outputUrl}
+                download={`remix-${generatedTrack.originalFileName || 'output'}.wav`}
+                className="inline-block px-4 py-2 bg-cyan-600 text-white rounded-lg shadow hover:bg-cyan-700 transition-all"
+              >
+                Download Remix
+              </a>
             </div>
           </motion.div>
         </div>

@@ -63,12 +63,12 @@ interface AppState {
 
 // Ganti edmFiles dan premiumAlbumArts dengan file dari public/new
 const newEdmFiles = [
-  'new/edm-140530.mp3',
-  'new/bar-heights-edm-music-230648.mp3',
-  'new/edm-dance-club-music-259530.mp3',
-  'new/the-streets-of-tokyo-1-min-edit-japanese-style-edm-370224.mp3',
-  'new/quirky-edm-with-toy-sounds-silly-vocal-chops-371342.mp3',
-  'new/edm-club-music-265781.mp3'
+  '/new/edm-140530.mp3',
+  '/new/bar-heights-edm-music-230648.mp3',
+  '/new/edm-dance-club-music-259530.mp3',
+  '/new/the-streets-of-tokyo-1-min-edit-japanese-style-edm-370224.mp3',
+  '/new/quirky-edm-with-toy-sounds-silly-vocal-chops-371342.mp3',
+  '/new/edm-club-music-265781.mp3'
 ];
 
 function shuffleArray<T>(array: T[]): T[] {
@@ -151,7 +151,7 @@ export const useStore = create<AppState>((set, get) => ({
       language: 'en'
     }
   },
-  tracks: sampleTracks.filter(t => t.userId === '1'),
+  tracks: sampleTracks,
   publicTracks: sampleTracks,
   currentTrack: null,
   isLoading: false,

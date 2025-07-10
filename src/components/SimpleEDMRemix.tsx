@@ -1,34 +1,32 @@
-import React, { useRef, useState, useEffect } from 'react';
-import MusicBeatDetector from 'music-beat-detector';
-import { generateEDMEffect, bufferToWavBlob, EDMAudioGenerator } from './EDMAudioGenerator';
+import React, { useState } from 'react';
+import { generateEDMEffect, bufferToWavBlob } from './EDMAudioGenerator';
 
-// EDM effect files - short 1-2 second effects
+// Simple EDM effects configuration
 const EDM_EFFECTS = [
-  { name: 'Riser', file: '/edm/riser1.wav', type: 'riser', duration: 1.5, volume: 0.3 },
-  { name: 'Drop', file: '/edm/drop1.wav', type: 'drop', duration: 2.0, volume: 0.4 },
-  { name: 'Sweep', file: '/edm/sweep1.wav', type: 'sweep', duration: 1.2, volume: 0.25 },
-  { name: 'Bass Boost', file: '/edm/bassboost1.wav', type: 'bassboost', duration: 1.8, volume: 0.35 },
-  { name: 'Echo', file: '/edm/echo1.wav', type: 'echo', duration: 1.0, volume: 0.2 },
-  { name: 'Pitch Shift', file: '/edm/pitchshift1.wav', type: 'pitchshift', duration: 1.5, volume: 0.3 },
-  { name: 'Reverse', file: '/edm/reverse1.wav', type: 'reverse', duration: 1.3, volume: 0.25 },
-  { name: 'Filter Sweep', file: '/edm/filtersweep1.wav', type: 'filtersweep', duration: 1.6, volume: 0.28 },
-  { name: 'Sidechain', file: '/edm/sidechain1.wav', type: 'sidechain', duration: 1.4, volume: 0.32 },
-  { name: 'Build Up', file: '/edm/buildup1.wav', type: 'buildup', duration: 2.0, volume: 0.38 }
+  { name: 'Riser', type: 'riser', duration: 1.5, volume: 0.3 },
+  { name: 'Drop', type: 'drop', duration: 2.0, volume: 0.4 },
+  { name: 'Sweep', type: 'sweep', duration: 1.2, volume: 0.25 },
+  { name: 'Bass Boost', type: 'bassboost', duration: 1.8, volume: 0.35 },
+  { name: 'Echo', type: 'echo', duration: 1.0, volume: 0.2 },
+  { name: 'Pitch Shift', type: 'pitchshift', duration: 1.5, volume: 0.3 },
+  { name: 'Reverse', type: 'reverse', duration: 1.3, volume: 0.25 },
+  { name: 'Filter Sweep', type: 'filtersweep', duration: 1.6, volume: 0.28 },
+  { name: 'Sidechain', type: 'sidechain', duration: 1.4, volume: 0.32 },
+  { name: 'Build Up', type: 'buildup', duration: 2.0, volume: 0.38 }
 ];
 
-export default function RemixStudioEDMAuto() {
+export default function SimpleEDMRemix() {
   const [audioBuffer, setAudioBuffer] = useState<AudioBuffer|null>(null);
-  const [bpm, setBpm] = useState<number|null>(null);
-  const [beatMarkers, setBeatMarkers] = useState<number[]>([]);
   const [remixUrl, setRemixUrl] = useState<string|null>(null);
   const [loading, setLoading] = useState(false);
   const [selectedEffects, setSelectedEffects] = useState<string[]>(['Riser', 'Drop', 'Sweep']);
-  const [effectIntensity, setEffectIntensity] = useState(0.5); // 0-1 scale
-  const [effectFrequency, setEffectFrequency] = useState(0.7); // How often effects trigger
+  const [effectIntensity, setEffectIntensity] = useState(0.5);
+  const [effectFrequency, setEffectFrequency] = useState(0.7);
   const [originalVolume, setOriginalVolume] = useState(0.8);
   const [edmVolume, setEdmVolume] = useState(0.3);
+  const [bpm, setBpm] = useState(120); // Default BPM
 
-  // 1. Upload & decode audio + auto BPM/beat
+  // Upload and decode audio
   async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
     setLoading(true);
     const file = e.target.files?.[0];
@@ -39,24 +37,21 @@ export default function RemixStudioEDMAuto() {
       const ctx = new window.AudioContext();
       const buffer = await ctx.decodeAudioData(arrayBuffer);
       setAudioBuffer(buffer);
-
-      // Deteksi BPM & beat marker otomatis
-      const audioBlob = new Blob([arrayBuffer]);
-      const bpmResult = await MusicBeatDetector(audioBlob);
-      setBpm(bpmResult.tempo);
-      setBeatMarkers(bpmResult.beats);
+      
+      // Simple BPM estimation based on audio duration
+      // In a real app, you'd use proper BPM detection
+      const estimatedBPM = Math.round(60 / (buffer.duration / 32)); // Rough estimate
+      setBpm(Math.max(80, Math.min(160, estimatedBPM)));
+      
     } catch (error) {
       console.error('Error processing audio:', error);
-      // Fallback values
-      setBpm(120);
-      setBeatMarkers([0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5]);
     }
     setLoading(false);
   }
 
-  // 2. Smart Remix with non-intrusive EDM effects
-  async function handleSmartRemix() {
-    if (!audioBuffer || !bpm || !beatMarkers.length) return;
+  // Create remix with generated EDM effects
+  async function handleCreateRemix() {
+    if (!audioBuffer) return;
     setLoading(true);
     
     try {
@@ -70,7 +65,7 @@ export default function RemixStudioEDMAuto() {
       const source = ctx.createBufferSource();
       source.buffer = audioBuffer;
       
-      // Main gain control for original music
+      // Main gain control
       const mainGain = ctx.createGain();
       mainGain.gain.value = originalVolume;
       source.connect(mainGain);
@@ -80,7 +75,7 @@ export default function RemixStudioEDMAuto() {
       edmMixer.gain.value = edmVolume * effectIntensity;
       edmMixer.connect(ctx.destination);
 
-      // Main compressor for overall mix
+      // Compressor for overall mix
       const compressor = ctx.createDynamicsCompressor();
       compressor.threshold.setValueAtTime(-20, 0);
       compressor.knee.setValueAtTime(10, 0);
@@ -91,9 +86,9 @@ export default function RemixStudioEDMAuto() {
       mainGain.connect(compressor);
       compressor.connect(ctx.destination);
 
-      // Calculate effect timing based on BPM
+      // Calculate effect timing
       const beatInterval = 60 / bpm; // seconds per beat
-      const effectInterval = beatInterval * (1 / effectFrequency); // How often to trigger effects
+      const effectInterval = beatInterval * (1 / effectFrequency);
       
       // Schedule EDM effects
       let lastEffectTime = -999;
@@ -110,7 +105,7 @@ export default function RemixStudioEDMAuto() {
         if (!effect) continue;
 
         try {
-          // Generate effect audio on-the-fly
+          // Generate effect audio
           const effectBuffer = await generateEDMEffect(effect.type, effect.duration, ctx.sampleRate);
 
           // Create effect source
@@ -156,7 +151,6 @@ export default function RemixStudioEDMAuto() {
 
           // Sidechain ducking for certain effects
           if (effect.type === 'riser' || effect.type === 'drop' || effect.type === 'sidechain') {
-            // Temporarily reduce main volume when effect plays
             mainGain.gain.setValueAtTime(originalVolume, time);
             mainGain.gain.linearRampToValueAtTime(originalVolume * 0.7, time + 0.1);
             mainGain.gain.linearRampToValueAtTime(originalVolume, time + effect.duration);
@@ -186,8 +180,6 @@ export default function RemixStudioEDMAuto() {
     setLoading(false);
   }
 
-
-
   const handleEffectToggle = (effectName: string) => {
     setSelectedEffects(prev => 
       prev.includes(effectName)
@@ -198,7 +190,7 @@ export default function RemixStudioEDMAuto() {
 
   return (
     <div className="max-w-4xl mx-auto p-6 bg-dark-800 rounded-xl shadow-xl mt-8">
-      <h2 className="text-3xl font-bold mb-6 text-white text-center">🎵 Smart EDM Remix Studio</h2>
+      <h2 className="text-3xl font-bold mb-6 text-white text-center">🎵 Simple EDM Remix Studio</h2>
       
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Left Column - Upload & Controls */}
@@ -234,6 +226,20 @@ export default function RemixStudioEDMAuto() {
             <h3 className="text-xl font-semibold mb-4 text-white">Mix Settings</h3>
             
             <div className="space-y-4">
+              <div>
+                <label className="block text-white text-sm mb-2">BPM (Manual Override)</label>
+                <input
+                  type="range"
+                  min="80"
+                  max="160"
+                  step="1"
+                  value={bpm}
+                  onChange={(e) => setBpm(parseInt(e.target.value))}
+                  className="w-full"
+                />
+                <span className="text-gray-400 text-sm">{bpm} BPM</span>
+              </div>
+
               <div>
                 <label className="block text-white text-sm mb-2">Effect Intensity</label>
                 <input
@@ -293,11 +299,11 @@ export default function RemixStudioEDMAuto() {
           </div>
 
           <button 
-            onClick={handleSmartRemix} 
-            disabled={!audioBuffer || !bpm || loading} 
+            onClick={handleCreateRemix} 
+            disabled={!audioBuffer || loading} 
             className="w-full px-6 py-3 bg-gradient-to-r from-cyan-600 to-blue-600 text-white rounded-lg shadow-lg hover:from-cyan-700 hover:to-blue-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed font-semibold text-lg"
           >
-            {loading ? '🎵 Processing Remix...' : '🎵 Create Smart EDM Remix'}
+            {loading ? '🎵 Processing Remix...' : '🎵 Create EDM Remix'}
           </button>
         </div>
 
@@ -306,15 +312,11 @@ export default function RemixStudioEDMAuto() {
           <div className="bg-dark-700 p-4 rounded-lg">
             <h3 className="text-xl font-semibold mb-4 text-white">Track Info</h3>
             <div className="space-y-2 text-white">
-              {bpm && <div>🎵 BPM: <span className="text-cyan-400">{bpm}</span></div>}
-              {beatMarkers.length > 0 && (
-                <div>
-                  🎯 Beat Markers: <span className="text-cyan-400">{beatMarkers.slice(0, 5).map(b => b.toFixed(1)).join(', ')}...</span>
-                </div>
-              )}
+              <div>🎵 BPM: <span className="text-cyan-400">{bpm}</span></div>
               {audioBuffer && (
                 <div>⏱️ Duration: <span className="text-cyan-400">{audioBuffer.duration.toFixed(1)}s</span></div>
               )}
+              <div>🎛️ Effects Selected: <span className="text-cyan-400">{selectedEffects.length}</span></div>
             </div>
           </div>
 
@@ -324,7 +326,7 @@ export default function RemixStudioEDMAuto() {
               <audio controls src={remixUrl} className="w-full mb-4" />
               <a 
                 href={remixUrl} 
-                download="smart-edm-remix.wav" 
+                download="simple-edm-remix.wav" 
                 className="inline-block w-full text-center px-4 py-2 bg-purple-600 text-white rounded-lg shadow hover:bg-purple-700 transition-all"
               >
                 💾 Download Remix
@@ -335,16 +337,14 @@ export default function RemixStudioEDMAuto() {
           <div className="bg-dark-700 p-4 rounded-lg">
             <h3 className="text-xl font-semibold mb-4 text-white">✨ Features</h3>
             <ul className="space-y-2 text-gray-300 text-sm">
-              <li>• 🎯 Auto BPM detection & beat synchronization</li>
               <li>• 🎵 Short 1-2 second EDM effects that don't overpower</li>
               <li>• 🔄 Repeating effects that blend smoothly</li>
               <li>• 🎚️ Smart sidechain ducking for clean mixing</li>
               <li>• 🎛️ Adjustable intensity and frequency controls</li>
               <li>• 🎧 Professional audio compression</li>
+              <li>• ⚡ Real-time audio generation (no external files needed)</li>
             </ul>
           </div>
-
-          <EDMAudioGenerator />
         </div>
       </div>
     </div>

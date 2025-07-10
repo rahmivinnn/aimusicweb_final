@@ -4,6 +4,7 @@ import { Toaster } from 'react-hot-toast';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import RemixStudio from './components/RemixStudio';
+import SimpleEDMRemix from './components/SimpleEDMRemix';
 import TrackHistory from './components/TrackHistory';
 import Dashboard from './components/Dashboard';
 import Settings from './components/Settings';
@@ -12,6 +13,63 @@ import Subscription from './components/Subscription';
 import AuthScreen from './components/AuthScreen';
 import TextToSong from './components/TextToSong';
 import { useStore } from './store/useStore';
+
+function ProfileDemo() {
+  const { user } = useStore();
+  return (
+    <div className="max-w-lg mx-auto p-8 text-white">
+      <h2 className="text-3xl font-bold mb-4">Profile</h2>
+      <div className="flex items-center gap-4 mb-4">
+        <img src={user?.avatar} alt="avatar" className="w-20 h-20 rounded-full border-4 border-cyan-500" />
+        <div>
+          <div className="text-xl font-semibold">{user?.name}</div>
+          <div className="text-gray-400">{user?.email}</div>
+        </div>
+      </div>
+      <div className="mb-2">Plan: <span className="font-bold text-cyan-400">{user?.plan}</span></div>
+      <div className="mb-2">Language: {user?.settings.language}</div>
+      <div className="mb-2">Theme: {user?.settings.theme}</div>
+      <div className="mb-2">Quality: {user?.settings.quality}</div>
+    </div>
+  );
+}
+function CreditsDemo() {
+  const { user } = useStore();
+  return (
+    <div className="max-w-lg mx-auto p-8 text-white">
+      <h2 className="text-3xl font-bold mb-4">Credits</h2>
+      <div className="text-2xl mb-2">{user?.credits} credits remaining</div>
+      <div className="mb-4">Plan: <span className="font-bold text-cyan-400">{user?.plan}</span></div>
+      <button className="px-4 py-2 bg-cyan-600 rounded text-white font-bold">Upgrade Plan</button>
+    </div>
+  );
+}
+function SubscriptionDemo() {
+  const { user } = useStore();
+  return (
+    <div className="max-w-lg mx-auto p-8 text-white">
+      <h2 className="text-3xl font-bold mb-4">Subscription</h2>
+      <div className="mb-2">Current Plan: <span className="font-bold text-cyan-400">{user?.plan}</span></div>
+      <div className="mb-2">Email: {user?.email}</div>
+      <button className="px-4 py-2 bg-purple-600 rounded text-white font-bold">Upgrade to Premium</button>
+    </div>
+  );
+}
+function NotificationsDemo() {
+  return (
+    <div className="max-w-lg mx-auto p-8 text-white">
+      <h2 className="text-3xl font-bold mb-4">Notifications</h2>
+      <ul className="space-y-3">
+        <li className="bg-dark-700 p-3 rounded">🎵 Your remix is ready to download!</li>
+        <li className="bg-dark-700 p-3 rounded">💡 New feature: Smart Prompt in Text to Song</li>
+        <li className="bg-dark-700 p-3 rounded">🔥 You have 8 credits left</li>
+      </ul>
+    </div>
+  );
+}
+function LibraryPlaceholder() {
+  return <div className="p-8 text-center text-white">Your Library (coming soon)</div>;
+}
 
 function App() {
   const [activeTab, setActiveTab] = useState('home');
@@ -43,18 +101,24 @@ function App() {
         return <Dashboard setActiveTab={setActiveTab} />;
       case 'remix':
         return <RemixStudio />;
+      case 'edm-remix':
+        return <SimpleEDMRemix />;
       case 'text-to-audio':
         return <TextToSong />;
       case 'history':
         return <TrackHistory />;
       case 'library':
-        return <TrackHistory />;
+        return <TrackHistory />; // Atau ganti ke <LibraryPlaceholder /> jika ingin beda
       case 'subscription':
-        return <Subscription />;
+        return <SubscriptionDemo />;
       case 'notifications':
-        return <Notifications />;
+        return <NotificationsDemo />;
       case 'settings':
         return <Settings />;
+      case 'profile':
+        return <ProfileDemo />;
+      case 'credits':
+        return <CreditsDemo />;
       default:
         return <Dashboard setActiveTab={setActiveTab} />;
     }

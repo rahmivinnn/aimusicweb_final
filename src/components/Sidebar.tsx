@@ -9,7 +9,10 @@ import {
   Settings,
   Menu,
   X,
-  Zap
+  Zap,
+  Music,
+  Sparkles,
+  Crown
 } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import PrismLogo from './PrismLogo';
@@ -24,8 +27,12 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange }) => {
 
   const menuItems = [
     { id: 'home', label: 'Home', icon: Home },
+    { id: 'remix', label: 'Remix Studio', icon: Music },
+    { id: 'edm-remix', label: 'EDM Remix', icon: Sparkles },
     { id: 'history', label: 'Remix History', icon: History },
     { id: 'library', label: 'My Library', icon: Library },
+    { id: 'profile', label: 'Profile', icon: Crown },
+    { id: 'credits', label: 'Credits', icon: Zap },
     { id: 'subscription', label: 'Subscription', icon: CreditCard },
     { id: 'notifications', label: 'Notifications', icon: Bell },
     { id: 'settings', label: 'Settings', icon: Settings },
